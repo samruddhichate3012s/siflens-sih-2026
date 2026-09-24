@@ -8,6 +8,7 @@ from ai.extractor import extract_safety_fields
 from ai.retrieval import find_similar
 from database.models import PrecursorPattern
 from ai.precursor import discover_precursors
+from database.models import Validation
 
 Base.metadata.create_all(bind=engine)
 
@@ -16,6 +17,11 @@ app = FastAPI(title="SIFLens API")
 
 class ReportAnalyzeRequest(BaseModel):
     report_text: str
+
+class ValidationRequest(BaseModel):
+    status: str
+    comment: str = ""
+    validator: str    
 
 
 @app.get("/")
@@ -214,3 +220,58 @@ def reanalyze_report(report_id: int, db: Session = Depends(get_db)):
         "sif_potential": report.sif_potential,
         "analysis_status": report.analysis_status,
     }
+VALID_STATUSES = {"confirmed", "modified", "rejected"}
+
+
+@app.post("/precursors/{precursor_id}/validate")
+def validate_precursor(precursor_id: int, payload: ValidationRequest, db: Session = Depends(get_db)):
+    pattern = db.query(PrecursorPattern).filter(PrecursorPattern.id == precursor_id).first()
+    if pattern is None:
+        return {"error": f"No precursor pattern found with id {precursor_id}"}
+
+    status = payload.status.strip().lower()
+    if status not in VALID_STATUSES:
+        return {"error": f"Invalid status '{payload.status}'. Must be one of: {', '.join(VALID_STATUSES)}"}
+
+    validation = Validation(
+        precursor_id=precursor_id,
+        status=status,
+        comment=payload.comment,
+        validator=payload.validator,
+    )
+    db.add(validation)
+
+    pattern.validation_status = status
+
+    db.commit()
+    db.refresh(validation)
+    db.refresh(pattern)
+
+    return {
+        "validation_id": validation.id,
+        "precursor_id": pattern.id,
+        "new_validation_status": pattern.validation_status,
+        "comment": validation.comment,
+        "validator": validation.validator,
+        "timestamp": validation.timestamp,
+    }
+
+
+@app.get("/precursors/{precursor_id}/validations")
+def get_precursor_validations(precursor_id: int, db: Session = Depends(get_db)):
+    validations = (
+        db.query(Validation)
+        .filter(Validation.precursor_id == precursor_id)
+        .order_by(Validation.timestamp.desc())
+        .all()
+    )
+    return [
+        {
+            "validation_id": v.id,
+            "status": v.status,
+            "comment": v.comment,
+            "validator": v.validator,
+            "timestamp": v.timestamp,
+        }
+        for v in validations
+    ]

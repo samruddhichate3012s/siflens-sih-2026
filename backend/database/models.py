@@ -34,3 +34,13 @@ class PrecursorPattern(Base):
     evidence_report_ids = Column(String, default="")
     validation_status = Column(String, default="pending")
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class Validation(Base):
+    __tablename__ = "validations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    precursor_id = Column(Integer, nullable=False)
+    status = Column(String, nullable=False)
+    comment = Column(String, nullable=True)
+    validator = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)

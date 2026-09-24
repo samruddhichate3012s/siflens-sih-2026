@@ -38,3 +38,8 @@ Thumbs.db
 # Python cache/testing
 .pytest_cache/
 .mypy_cache/
+# Data files (large, not code, and OSHA/public data shouldn't live in git history)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep

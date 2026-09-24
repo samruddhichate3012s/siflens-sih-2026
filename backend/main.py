@@ -68,3 +68,43 @@ def analyze_report(payload: ReportAnalyzeRequest, db: Session = Depends(get_db))
         "evidence": report.evidence,
         "analysis_status": report.analysis_status,
     }
+@app.get("/reports")
+def list_reports(db: Session = Depends(get_db)):
+    reports = db.query(SafetyReport).order_by(SafetyReport.id.desc()).all()
+    return [
+        {
+            "id": r.id,
+            "report_text": r.report_text,
+            "activity": r.activity,
+            "hazard": r.hazard,
+            "sif_potential": r.sif_potential,
+            "lifesaving_rule": r.lifesaving_rule,
+            "analysis_status": r.analysis_status,
+            "timestamp": r.timestamp,
+        }
+        for r in reports
+    ]
+
+
+@app.get("/reports/{report_id}")
+def get_report(report_id: int, db: Session = Depends(get_db)):
+    report = db.query(SafetyReport).filter(SafetyReport.id == report_id).first()
+    if report is None:
+        return {"error": f"No report found with id {report_id}"}
+
+    return {
+        "id": report.id,
+        "report_text": report.report_text,
+        "activity": report.activity,
+        "hazard": report.hazard,
+        "energy": report.energy,
+        "exposure": report.exposure,
+        "critical_control": report.critical_control,
+        "barrier_failure": report.barrier_failure,
+        "potential_consequence": report.potential_consequence,
+        "sif_potential": report.sif_potential,
+        "lifesaving_rule": report.lifesaving_rule,
+        "evidence": report.evidence,
+        "analysis_status": report.analysis_status,
+        "timestamp": report.timestamp,
+    }

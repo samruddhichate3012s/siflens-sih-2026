@@ -22,3 +22,15 @@ class SafetyReport(Base):
     sif_potential = Column(String, nullable=True)
     lifesaving_rule = Column(String, nullable=True)
     evidence = Column(String, nullable=True)
+
+class PrecursorPattern(Base):
+    __tablename__ = "precursor_patterns"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    lifesaving_rule = Column(String, nullable=False)
+    occurrence_count = Column(Integer, default=0)
+    sif_related_count = Column(Integer, default=0)
+    evidence_report_ids = Column(String, default="")
+    validation_status = Column(String, default="pending")
+    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

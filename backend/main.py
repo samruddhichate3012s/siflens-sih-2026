@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from database.database import Base, engine, get_db
 from database.models import SafetyReport
 from ai.extractor import extract_safety_fields
+from ai.retrieval import find_similar
 
 Base.metadata.create_all(bind=engine)
 
@@ -107,4 +108,26 @@ def get_report(report_id: int, db: Session = Depends(get_db)):
         "evidence": report.evidence,
         "analysis_status": report.analysis_status,
         "timestamp": report.timestamp,
+    }
+@app.get("/reports/{report_id}/similar")
+def get_similar_reports(report_id: int, top_k: int = 5, db: Session = Depends(get_db)):
+    report = db.query(SafetyReport).filter(SafetyReport.id == report_id).first()
+    if report is None:
+        return {"error": f"No report found with id {report_id}"}
+
+    keyword_source_text = " ".join(
+        str(field) for field in [
+            report.hazard,
+            report.energy,
+            report.critical_control,
+            report.barrier_failure,
+        ]
+        if field
+    )
+
+    matches = find_similar(report.report_text, keyword_source_text=keyword_source_text, top_k=top_k)
+    return {
+        "report_id": report.id,
+        "report_text": report.report_text,
+        "similar_reports": matches,
     }

@@ -3,3 +3,5 @@ uvicorn
 sqlalchemy
 pandas
 requests
+sentence-transformers
+faiss-cpu

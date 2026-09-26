@@ -324,7 +324,7 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-[#f3f5f8] text-slate-900">
       {/* Top utility strip */}
       <div className="bg-[#0b2a3c] text-slate-200 text-xs">
-        <div className="max-w-7xl mx-auto px-6 py-1.5 flex flex-wrap items-center justify-between gap-2">
+        <div className="max-w-7xl mx-auto px-6 py-1 flex flex-wrap items-center justify-between gap-2">
           <span>Smart India Hackathon 2026 · Prototype for Oil India Limited (HSE)</span>
           <span className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${isLive ? "bg-green-400" : "bg-amber-400"}`}></span>
@@ -335,22 +335,22 @@ export default function App() {
 
       {/* Masthead */}
       <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-md border-2 border-[#15617a] flex items-center justify-center text-[#15617a]">
-              <Shield className="w-7 h-7" />
+        <div className="max-w-7xl mx-auto px-6 py-1.5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded border-2 border-[#15617a] flex items-center justify-center text-[#15617a]">
+              <Shield className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-[#0b2a3c] leading-tight">SIFLens</h1>
-              <div className="text-sm text-slate-600">Safety Barrier &amp; SIF Precursor Intelligence System</div>
+              <h1 className="text-lg font-bold tracking-tight text-[#0b2a3c] leading-none">SIFLens</h1>
+              <div className="text-xs text-slate-600 leading-tight mt-0.5">Safety Barrier &amp; SIF Precursor Intelligence System</div>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-xs uppercase tracking-wider text-slate-500">Console</div>
-            <div className="text-sm font-semibold text-slate-800">HSE Officer</div>
+          <div className="text-right leading-tight">
+            <div className="text-[10px] uppercase tracking-wider text-slate-500">Console</div>
+            <div className="text-xs font-semibold text-slate-800">HSE Officer</div>
           </div>
         </div>
-        <div className="h-1 bg-gradient-to-r from-[#15617a] via-[#15617a] to-[#e0a526]"></div>
+        <div className="h-0.5 bg-gradient-to-r from-[#15617a] via-[#15617a] to-[#e0a526]"></div>
       </header>
 
       {/* Primary navigation */}

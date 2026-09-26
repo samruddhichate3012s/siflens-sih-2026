@@ -4,4 +4,4 @@ sqlalchemy
 pandas
 requests
 sentence-transformers
-faiss-cpu
+faiss-cpulangdetect

@@ -74,7 +74,7 @@ def extract_safety_fields(report_text: str) -> dict:
         response = requests.post(
             OLLAMA_URL,
             json={"model": MODEL_NAME, "prompt": prompt, "stream": False},
-            timeout=120,
+            timeout=300,
         )
         response.raise_for_status()
     except requests.exceptions.RequestException as e:

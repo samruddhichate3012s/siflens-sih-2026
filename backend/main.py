@@ -9,6 +9,7 @@ from ai.retrieval import find_similar
 from database.models import PrecursorPattern
 from ai.precursor import discover_precursors
 from database.models import Validation
+from ai.translate import detect_and_translate
 
 Base.metadata.create_all(bind=engine)
 
@@ -42,10 +43,19 @@ def db_check(db: Session = Depends(get_db)):
 
 @app.post("/reports/analyze")
 def analyze_report(payload: ReportAnalyzeRequest, db: Session = Depends(get_db)):
-    result = extract_safety_fields(payload.report_text)
-
+    translation = detect_and_translate(payload.report_text)
+    english_text = translation.get("english_translation") or payload.report_text
+    result = extract_safety_fields(english_text)
+    if "error" in result:
+        print("EXTRACTION ERROR:", 
+    result["error"], 
+    str(result.get("raw_output", ""))[:300])
     report = SafetyReport(
         report_text=payload.report_text,
+        translated_text=english_text,
+        detected_language=translation.get("detected_language"),
+        detection_method=translation.get("detection_method"),
+
         activity=result.get("activity"),
         hazard=result.get("hazard"),
         energy=result.get("energy"),
@@ -65,6 +75,9 @@ def analyze_report(payload: ReportAnalyzeRequest, db: Session = Depends(get_db))
     return {
         "id": report.id,
         "report_text": report.report_text,
+        "translated_text": report.translated_text,
+        "detected_language": report.detected_language,
+        "detection_method": report.detection_method,
         "activity": report.activity,
         "hazard": report.hazard,
         "energy": report.energy,
@@ -197,7 +210,7 @@ def reanalyze_report(report_id: int, db: Session = Depends(get_db)):
     if report is None:
         return {"error": f"No report found with id {report_id}"}
 
-    result = extract_safety_fields(report.report_text)
+    result = extract_safety_fields(report.translated_text or report.report_text)
 
     report.activity = result.get("activity")
     report.hazard = result.get("hazard")

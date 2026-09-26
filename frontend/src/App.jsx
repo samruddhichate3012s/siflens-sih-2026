@@ -27,27 +27,77 @@ import {
   barrierChartData 
 } from "./data/mockData"
 
+const NOT_RECORDED = "Not recorded"
+
+// Converts a backend report (snake_case) into the field names the UI uses.
+// Missing values show "Not recorded" instead of borrowing mock data.
 const toUiReport = (r) => ({
-  ...initialReports[0],
   id: r.id,
-  type: "Near Miss",
-  location: r.detected_language ? `Reported in ${r.detected_language}` : "Field report",
+  type: r.report_type || NOT_RECORDED,
+  location: r.location || NOT_RECORDED,
   description: r.report_text,
   translatedText: r.translated_text,
   detectedLanguage: r.detected_language,
-  sifPotential: r.sif_potential,
-  barrierFailure: r.barrier_failure,
-  status: "Pending Validation",
+  sifPotential: r.sif_potential || "Unknown",
+  barrierFailure: r.barrier_failure || NOT_RECORDED,
+  status: r.analysis_status === "analyzed" ? "AI Analyzed" : (r.analysis_status || "Pending"),
   date: (r.timestamp || new Date().toISOString()).split("T")[0],
-  activity: r.activity,
-  hazard: r.hazard,
-  energy: r.energy,
-  exposure: r.exposure,
-  criticalControl: r.critical_control,
-  consequence: r.potential_consequence,
-  lifesavingRule: r.lifesaving_rule,
-  evidence: r.evidence,
+  activity: r.activity || NOT_RECORDED,
+  hazard: r.hazard || NOT_RECORDED,
+  energy: r.energy || NOT_RECORDED,
+  exposure: r.exposure || NOT_RECORDED,
+  criticalControl: r.critical_control || NOT_RECORDED,
+  potentialConsequence: r.potential_consequence || NOT_RECORDED,
+  lifeSavingRule: r.lifesaving_rule || NOT_RECORDED,
+  evidence: r.evidence || NOT_RECORDED,
 })
+
+// Mock precursors use a different shape; convert them so one page renders both.
+const mockPrecursorsUi = mockPrecursors.map((p, idx) => ({
+  id: `mock-${idx}`,
+  name: p.name,
+  lifesavingRule: p.activities.join(", "),
+  occurrenceCount: p.reportsCount,
+  sifRelatedCount: parseInt(p.sifRelated, 10) || 0,
+  evidenceReportIds: [],
+  validationStatus: p.status,
+}))
+
+const toUiPrecursor = (p) => ({
+  id: p.id,
+  name: p.name,
+  lifesavingRule: p.lifesaving_rule,
+  occurrenceCount: p.occurrence_count || 0,
+  sifRelatedCount: p.sif_related_count || 0,
+  evidenceReportIds: (p.evidence_report_ids || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(Number),
+  validationStatus: p.validation_status || "pending",
+})
+
+const BAR_COLORS = ["bg-rose-500", "bg-amber-500", "bg-blue-500", "bg-indigo-500", "bg-emerald-500"]
+
+// Counts reports per Life-Saving Rule for the dashboard bars.
+const buildRuleChart = (reports) => {
+  const counts = {}
+  reports.forEach((r) => {
+    const rule = r.lifeSavingRule
+    if (!rule || rule === NOT_RECORDED || rule === "Unknown") return
+    counts[rule] = (counts[rule] || 0) + 1
+  })
+  const total = reports.length || 1
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([label, count], idx) => ({
+      label,
+      count,
+      pct: Math.round((count / total) * 100),
+      color: BAR_COLORS[idx % BAR_COLORS.length],
+    }))
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard")
@@ -60,11 +110,20 @@ export default function App() {
   // New report form state
   const [formData, setFormData] = useState({
     type: "Near Miss",
-    location: "Plant 2 � Boiler Feed Station",
+    location: "Plant 2 · Boiler Feed Station",
     description: "During routine line flushing, contractor unlocked the high-pressure steam bypass valve before receiving clearance from the control room operator. Zero-energy lockout was bypassed."
   })
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-    const [isLive, setIsLive] = useState(false)
+  const [isLive, setIsLive] = useState(false)
+  const [precursors, setPrecursors] = useState(mockPrecursorsUi)
+  const [isDiscovering, setIsDiscovering] = useState(false)
+  const [similarData, setSimilarData] = useState(null)
+  const [similarLoading, setSimilarLoading] = useState(false)
+
+  const loadPrecursors = () =>
+    api.getPrecursors().then((data) => {
+      if (Array.isArray(data)) setPrecursors(data.map(toUiPrecursor))
+    })
 
   useEffect(() => {
     api.getReports().then((data) => {
@@ -76,7 +135,48 @@ export default function App() {
       setSelectedReport(mapped[0])
       setIsLive(true)
     })
+    loadPrecursors()
   }, [])
+
+  // Similar Reports: ask the backend for FAISS matches for the selected report.
+  useEffect(() => {
+    if (activeTab !== "similar" || !isLive || !selectedReport) return
+    setSimilarLoading(true)
+    setSimilarData(null)
+    api.getSimilarReports(selectedReport.id, 5).then((data) => {
+      setSimilarData(data && Array.isArray(data.similar_reports) ? data : null)
+      setSimilarLoading(false)
+    })
+  }, [activeTab, isLive, selectedReport?.id])
+
+  const handleDiscoverPrecursors = async () => {
+    setIsDiscovering(true)
+    try {
+      await api.discoverPrecursors()
+      await loadPrecursors()
+    } catch (err) {
+      alert("Precursor discovery failed. Is the backend running?")
+    } finally {
+      setIsDiscovering(false)
+    }
+  }
+
+  const openReport = (id) => {
+    const found = reports.find((r) => r.id === id)
+    if (found) {
+      setSelectedReport(found)
+      setActiveTab("analysis")
+    }
+  }
+
+  // Dashboard numbers, all computed from the loaded reports and precursors.
+  const ruleChart = isLive ? buildRuleChart(reports) : barrierChartData
+  const highSifReports = reports.filter((r) => r.sifPotential === "High")
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+  const reportsThisWeek = reports.filter((r) => r.date >= weekAgo).length
+  const pendingPrecursors = precursors.filter((p) => String(p.validationStatus).toLowerCase() === "pending")
+  const topRule = ruleChart[0]
+  const topRuleHighSif = topRule ? highSifReports.filter((r) => r.lifeSavingRule === topRule.label).length : 0
 
 
   
@@ -96,7 +196,7 @@ export default function App() {
     e.preventDefault()
     setIsAnalyzing(true)
     try {
-      const result = await api.analyzeReport(formData.description)
+      const result = await api.analyzeReport(formData.description, formData.type, formData.location)
       const created = toUiReport(result)
       setReports((prev) => [created, ...prev])
       setSelectedReport(created)
@@ -223,8 +323,10 @@ export default function App() {
 
         <div className="p-4 border-t border-slate-800 bg-slate-900/40">
           <div className="text-xs text-slate-400">Target Backend API</div>
-          <div className="font-mono text-xs text-emerald-400 mt-0.5">FastAPI: Ready for Connect</div>
-          <div className="text-[11px] text-slate-500 mt-1">SIH 2026 � Teammate-Frontend</div>
+          <div className={`font-mono text-xs mt-0.5 ${isLive ? "text-emerald-400" : "text-amber-400"}`}>
+            {isLive ? "FastAPI: Connected (localhost:8000)" : "FastAPI: Offline, showing mock data"}
+          </div>
+          <div className="text-[11px] text-slate-500 mt-1">SIH 2026 · Teammate-Frontend</div>
         </div>
       </aside>
 
@@ -239,7 +341,7 @@ export default function App() {
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              FastAPI Bridge: {isLive ? "Live" : "Mock Active"}
+              FastAPI Bridge: {isLive ? "Live" : "Mock Data"}
             </span>
             <div className="text-xs text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
               HSE Officer Console
@@ -263,25 +365,31 @@ export default function App() {
                 <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 shadow-sm">
                   <div className="text-xs font-medium text-slate-400">Total Safety Reports</div>
                   <div className="text-3xl font-bold text-slate-100 mt-2">{reports.length}</div>
-                  <div className="text-xs text-slate-500 mt-1">+14 logged this week</div>
+                  <div className="text-xs text-slate-500 mt-1">{reportsThisWeek} logged in the last 7 days</div>
                 </div>
 
                 <div className="bg-rose-950/30 border border-rose-900/50 rounded-xl p-5 shadow-sm">
                   <div className="text-xs font-medium text-rose-300">High SIF-Potential Reports</div>
-                  <div className="text-3xl font-bold text-rose-400 mt-2">{reports.filter(r => r.sifPotential === "High").length}</div>
-                  <div className="text-xs text-rose-400/80 mt-1">Requires immediate barrier audit</div>
+                  <div className="text-3xl font-bold text-rose-400 mt-2">{highSifReports.length}</div>
+                  <div className="text-xs text-rose-400/80 mt-1">
+                    {reports.length ? Math.round((highSifReports.length / reports.length) * 100) : 0}% of all reports rated High by the AI
+                  </div>
                 </div>
 
                 <div className="bg-amber-950/30 border border-amber-900/50 rounded-xl p-5 shadow-sm">
                   <div className="text-xs font-medium text-amber-300">Recurring Precursors</div>
-                  <div className="text-3xl font-bold text-amber-400 mt-2">12</div>
-                  <div className="text-xs text-amber-400/80 mt-1">LOTO & Fall protection lead</div>
+                  <div className="text-3xl font-bold text-amber-400 mt-2">{precursors.length}</div>
+                  <div className="text-xs text-amber-400/80 mt-1">
+                    {precursors[0] ? `Top: ${precursors[0].lifesavingRule} (${precursors[0].occurrenceCount} reports)` : "Run discovery on the Precursors page"}
+                  </div>
                 </div>
 
                 <div className="bg-indigo-950/30 border border-indigo-900/50 rounded-xl p-5 shadow-sm">
-                  <div className="text-xs font-medium text-indigo-300">Pending HSE Validations</div>
-                  <div className="text-3xl font-bold text-indigo-400 mt-2">9</div>
-                  <div className="text-xs text-indigo-400/80 mt-1">2 flagged critical for sign-off</div>
+                  <div className="text-xs font-medium text-indigo-300">Precursors Awaiting HSE Validation</div>
+                  <div className="text-3xl font-bold text-indigo-400 mt-2">{pendingPrecursors.length}</div>
+                  <div className="text-xs text-indigo-400/80 mt-1">
+                    {precursors.length - pendingPrecursors.length} of {precursors.length} already reviewed
+                  </div>
                 </div>
               </div>
 
@@ -289,15 +397,18 @@ export default function App() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 bg-slate-900/70 border border-slate-800 rounded-xl p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-semibold text-slate-200">Recurring Barrier-Failure Distribution</h2>
-                    <span className="text-xs text-slate-400 font-mono">Pareto Distribution</span>
+                    <h2 className="text-sm font-semibold text-slate-200">Reports by Life-Saving Rule</h2>
+                    <span className="text-xs text-slate-400 font-mono">Top 5 · % of all reports</span>
                   </div>
                   <div className="space-y-4">
-                    {barrierChartData.map((item, idx) => (
+                    {ruleChart.length === 0 && (
+                      <div className="text-xs text-slate-500">No analysed reports with a Life-Saving Rule yet.</div>
+                    )}
+                    {ruleChart.map((item, idx) => (
                       <div key={idx} className="space-y-1.5">
                         <div className="flex justify-between text-xs font-medium">
                           <span className="text-slate-300">{item.label}</span>
-                          <span className="text-slate-400">{item.count} Failures ({item.pct}%)</span>
+                          <span className="text-slate-400">{item.count} reports ({item.pct}%)</span>
                         </div>
                         <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
                           <div
@@ -313,13 +424,20 @@ export default function App() {
                 <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-6 flex flex-col justify-between">
                   <div>
                     <h2 className="text-sm font-semibold text-slate-200 mb-2">Life-Saving Rule (LSR) Focus</h2>
-                    <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                      78% of High SIF predictions in the last 30 days correlate with breaches in <span className="text-rose-400 font-semibold">LSR #3 (Hazardous Energy Isolation)</span> and <span className="text-amber-400 font-semibold">LSR #1 (Working at Height)</span>.
-                    </p>
-                    <div className="p-3 bg-slate-800/80 rounded-lg border border-slate-700/60 text-xs space-y-1">
-                      <div className="font-semibold text-slate-200">Recommended Action:</div>
-                      <div className="text-slate-400">Trigger mandatory engineering barrier lockout review for Unit 4 and Boiler House.</div>
-                    </div>
+                    {topRule ? (
+                      <>
+                        <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                          <span className="text-rose-400 font-semibold">{topRule.label}</span> is the most frequent rule, in {topRule.count} of {reports.length} reports.{" "}
+                          {topRuleHighSif} of those are rated High SIF potential.
+                        </p>
+                        <div className="p-3 bg-slate-800/80 rounded-lg border border-slate-700/60 text-xs space-y-1">
+                          <div className="font-semibold text-slate-200">Suggested focus:</div>
+                          <div className="text-slate-400">Review the {topRule.label} controls in these {topRule.count} reports and validate the matching precursor pattern.</div>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-slate-400 leading-relaxed mb-4">No Life-Saving Rule data yet. Analyse a report to populate this.</p>
+                    )}
                   </div>
                   <button
                     onClick={() => setActiveTab("new-report")}
@@ -497,7 +615,7 @@ export default function App() {
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
-                    placeholder="e.g. Unit 4 � Catalytic Cracker"
+                    placeholder="e.g. Unit 4 · Catalytic Cracker"
                     required
                   />
                 </div>
@@ -553,10 +671,10 @@ export default function App() {
 
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <div className="text-[11px] text-slate-400">SIF Prediction</div>
+                    <div className="text-[11px] text-slate-400">SIF Prediction (AI rating: High / Medium / Low)</div>
                     <div className="text-base font-bold text-rose-400 flex items-center gap-1.5">
                       <Flame className="w-4 h-4 text-rose-500" />
-                      {selectedReport.sifPotential} SIF Potential ({selectedReport.confidence}%)
+                      {selectedReport.sifPotential} SIF Potential
                     </div>
                   </div>
                   <button
@@ -636,6 +754,22 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Original and translated text */}
+              {selectedReport.description && (
+                <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-2">
+                      Original Report{selectedReport.detectedLanguage ? ` (${selectedReport.detectedLanguage})` : ""}
+                    </h4>
+                    <p className="text-xs text-slate-300 leading-relaxed">{selectedReport.description}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-2">English Text Used for Analysis</h4>
+                    <p className="text-xs text-slate-300 leading-relaxed">{selectedReport.translatedText || selectedReport.description}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Life-Saving Rule & Extracted Evidence */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 space-y-3">
@@ -660,34 +794,90 @@ export default function App() {
           {activeTab === "similar" && (
             <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-6 space-y-6">
               <div>
-                <h2 className="text-base font-bold text-slate-100">Semantically Similar Historical Incidents</h2>
+                <h2 className="text-base font-bold text-slate-100">Similar Historical Incidents (OSHA memory)</h2>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Retrieved via dense semantic vector embeddings across historical plant incident registries.
+                  The selected report is compared with about 3,000 historical OSHA incident narratives stored in a FAISS vector index.
+                  Match score = how close the two texts are in meaning (cosine similarity of MiniLM sentence embeddings, 0 to 100%).
+                  Matches that also share a keyword with the report's hazard, energy, control or barrier failure are ranked first.
                 </p>
               </div>
 
+              {isLive && (
+                <div className="p-4 bg-slate-950 border border-rose-900/40 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[11px] font-bold uppercase text-rose-400 tracking-wider">Compared report</div>
+                    <select
+                      value={selectedReport.id}
+                      onChange={(e) => {
+                        const found = reports.find((r) => String(r.id) === e.target.value)
+                        if (found) setSelectedReport(found)
+                      }}
+                      className="bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200"
+                    >
+                      {reports.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          Report #{r.id} · {r.lifeSavingRule}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="text-xs text-slate-200">{selectedReport.translatedText || selectedReport.description}</div>
+                  {similarData?.keywords_from && (
+                    <div className="text-[11px] text-slate-500">Keywords taken from: {similarData.keywords_from}</div>
+                  )}
+                </div>
+              )}
+
+              {similarLoading && <div className="text-xs text-slate-400">Searching the historical index...</div>}
+              {isLive && !similarLoading && !similarData && (
+                <div className="text-xs text-amber-400">Could not load similar reports. Check that the backend is running and the FAISS index exists.</div>
+              )}
+
               <div className="space-y-3">
-                {mockSimilarReports.map((report) => (
+                {isLive && similarData && similarData.similar_reports.map((m) => (
+                  <div key={`${m.report_id}-${m.rank}`} className="p-4 bg-slate-950 border border-slate-800 rounded-xl flex flex-col sm:flex-row justify-between items-start gap-4">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs text-slate-400">#{m.rank} · OSHA {m.report_id}</span>
+                        {m.event_type && <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">{m.event_type}</span>}
+                        {m.nature && <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">{m.nature}</span>}
+                        <span className={`text-[11px] px-1.5 py-0.5 rounded ${m.keyword_match ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-800 text-slate-400"}`}>
+                          {m.keyword_match ? "Meaning + keyword match" : "Meaning match only"}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-200 leading-relaxed">{m.narrative}</div>
+                      {m.employer && <div className="text-[11px] text-slate-500">{m.employer}</div>}
+                    </div>
+
+                    <div className="w-full sm:w-44 shrink-0 space-y-1">
+                      <div className="flex justify-between text-xs font-medium">
+                        <span className="text-slate-400">Match Score</span>
+                        <span className="text-rose-400 font-bold">{m.similarity}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-amber-500 to-rose-500 rounded-full" style={{ width: `${m.similarity}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {!isLive && mockSimilarReports.map((report) => (
                   <div key={report.id} className="p-4 bg-slate-950 border border-slate-800 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs text-slate-400">{report.id}</span>
-                        <span className="text-xs text-slate-500 font-mono">� {report.date}</span>
+                        <span className="text-xs text-slate-500 font-mono">· {report.date} · mock data</span>
                       </div>
                       <div className="text-sm font-semibold text-slate-200">{report.title}</div>
                       <div className="text-xs text-rose-400/90">{report.consequence}</div>
                     </div>
-
                     <div className="w-full sm:w-48 shrink-0 space-y-1">
                       <div className="flex justify-between text-xs font-medium">
                         <span className="text-slate-400">Match Score</span>
                         <span className="text-rose-400 font-bold">{report.similarity}%</span>
                       </div>
                       <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-amber-500 to-rose-500 rounded-full"
-                          style={{ width: `${report.similarity}%` }}
-                        ></div>
+                        <div className="h-full bg-gradient-to-r from-amber-500 to-rose-500 rounded-full" style={{ width: `${report.similarity}%` }}></div>
                       </div>
                     </div>
                   </div>
@@ -699,39 +889,67 @@ export default function App() {
           {/* 6. RECURRING PRECURSORS */}
           {activeTab === "precursors" && (
             <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-6 space-y-6">
-              <div>
-                <h2 className="text-base font-bold text-slate-100">Recurring SIF Precursors & Pattern Detection</h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Clusters of repeated barrier degradation events across plant locations and maintenance activities.
-                </p>
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                <div>
+                  <h2 className="text-base font-bold text-slate-100">Recurring SIF Precursors & Pattern Detection</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Analysed reports grouped by the Life-Saving Rule the AI assigned. A rule seen in 2 or more reports becomes a recurring precursor.
+                    Counts are out of the {isLive ? reports.length : "mock"} analysed reports, not the OSHA history.
+                  </p>
+                </div>
+                {isLive && (
+                  <button
+                    onClick={handleDiscoverPrecursors}
+                    disabled={isDiscovering}
+                    className="shrink-0 px-3 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-60 text-white text-xs font-semibold rounded-lg transition"
+                  >
+                    {isDiscovering ? "Re-running..." : "Re-run Discovery"}
+                  </button>
+                )}
               </div>
 
+              {precursors.length === 0 && (
+                <div className="text-xs text-slate-400">No recurring patterns yet. Click "Re-run Discovery" after analysing a few reports.</div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {mockPrecursors.map((p, idx) => (
-                  <div key={idx} className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
-                    <div className="flex justify-between items-start">
+                {precursors.map((p) => (
+                  <div key={p.id} className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div className="flex justify-between items-start gap-2">
                       <div>
                         <h3 className="text-sm font-bold text-slate-100">{p.name}</h3>
-                        <div className="text-xs text-rose-400 font-medium mt-0.5">{p.sifRelated}</div>
+                        <div className="text-xs text-rose-400 font-medium mt-0.5">
+                          {p.sifRelatedCount} / {p.occurrenceCount} rated High SIF
+                        </div>
                       </div>
-                      <span className="text-xs px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                        {p.status}
+                      <span className="text-xs px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 capitalize">
+                        {p.validationStatus}
                       </span>
                     </div>
 
                     <div className="space-y-2 text-xs text-slate-300">
                       <div>
-                        <span className="text-slate-500 font-medium">Affected Locations: </span>
-                        {p.locations.join(", ")}
+                        <span className="text-slate-500 font-medium">Life-Saving Rule: </span>
+                        {p.lifesavingRule}
                       </div>
                       <div>
-                        <span className="text-slate-500 font-medium">Correlated Activities: </span>
-                        {p.activities.join(", ")}
+                        <span className="text-slate-500 font-medium">Total Report Count: </span>
+                        <span className="font-semibold text-slate-100">{p.occurrenceCount} reports</span>
                       </div>
-                      <div>
-                        <span className="text-slate-500 font-medium">Total Incident Count: </span>
-                        <span className="font-semibold text-slate-100">{p.reportsCount} reports</span>
-                      </div>
+                      {p.evidenceReportIds.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-slate-500 font-medium">Evidence reports: </span>
+                          {p.evidenceReportIds.map((id) => (
+                            <button
+                              key={id}
+                              onClick={() => openReport(id)}
+                              className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-rose-600/30 text-rose-300 font-mono text-[11px]"
+                            >
+                              #{id}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

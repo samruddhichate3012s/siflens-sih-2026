@@ -12,6 +12,8 @@ class SafetyReport(Base):
     translated_text = Column(String, nullable=True)
     detected_language = Column(String, nullable=True)
     detection_method = Column(String, nullable=True)
+    report_type = Column(String, nullable=True)
+    location = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
     analysis_status = Column(String, default="pending")
 

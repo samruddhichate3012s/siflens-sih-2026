@@ -26,13 +26,14 @@ export const api = {
   },
 
   // Send a new report for AI processing
-  analyzeReport: async (reportText) => {
+  analyzeReport: async (reportText, reportType = null, location = null) => {
     try {
       const response = await fetch(`${API_BASE_URL}/reports/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ report_text: reportText })
+        body: JSON.stringify({ report_text: reportText, report_type: reportType, location })
       });
+      if (!response.ok) throw new Error(`Analyze failed with status ${response.status}`);
       return await response.json();
     } catch (error) {
       console.error("Error analyzing report:", error);

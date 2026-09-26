@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
 
 from database.database import Base, engine, get_db
@@ -25,11 +26,43 @@ app.add_middleware(
 
 class ReportAnalyzeRequest(BaseModel):
     report_text: str
+    report_type: Optional[str] = None
+    location: Optional[str] = None
 
 class ValidationRequest(BaseModel):
     status: str
     comment: str = ""
     validator: str    
+
+
+def serialize_report(r):
+    return {
+        "id": r.id,
+        "report_text": r.report_text,
+        "translated_text": r.translated_text,
+        "detected_language": r.detected_language,
+        "detection_method": r.detection_method,
+        "report_type": r.report_type,
+        "location": r.location,
+        "activity": r.activity,
+        "hazard": r.hazard,
+        "energy": r.energy,
+        "exposure": r.exposure,
+        "critical_control": r.critical_control,
+        "barrier_failure": r.barrier_failure,
+        "potential_consequence": r.potential_consequence,
+        "sif_potential": r.sif_potential,
+        "lifesaving_rule": r.lifesaving_rule,
+        "evidence": r.evidence,
+        "analysis_status": r.analysis_status,
+        "timestamp": r.timestamp,
+    }
+
+
+def distance_to_similarity(distance):
+    # MiniLM vectors are unit length and IndexFlatL2 returns squared L2
+    # distance, so cosine similarity = 1 - distance / 2.
+    return max(0, min(100, round((1 - distance / 2) * 100)))
 
 
 @app.get("/")
@@ -62,6 +95,8 @@ def analyze_report(payload: ReportAnalyzeRequest, db: Session = Depends(get_db))
         translated_text=english_text,
         detected_language=translation.get("detected_language"),
         detection_method=translation.get("detection_method"),
+        report_type=payload.report_type,
+        location=payload.location,
 
         activity=result.get("activity"),
         hazard=result.get("hazard"),
@@ -79,40 +114,11 @@ def analyze_report(payload: ReportAnalyzeRequest, db: Session = Depends(get_db))
     db.commit()
     db.refresh(report)
 
-    return {
-        "id": report.id,
-        "report_text": report.report_text,
-        "translated_text": report.translated_text,
-        "detected_language": report.detected_language,
-        "detection_method": report.detection_method,
-        "activity": report.activity,
-        "hazard": report.hazard,
-        "energy": report.energy,
-        "exposure": report.exposure,
-        "critical_control": report.critical_control,
-        "barrier_failure": report.barrier_failure,
-        "potential_consequence": report.potential_consequence,
-        "sif_potential": report.sif_potential,
-        "lifesaving_rule": report.lifesaving_rule,
-        "evidence": report.evidence,
-        "analysis_status": report.analysis_status,
-    }
+    return serialize_report(report)
 @app.get("/reports")
 def list_reports(db: Session = Depends(get_db)):
     reports = db.query(SafetyReport).order_by(SafetyReport.id.desc()).all()
-    return [
-        {
-            "id": r.id,
-            "report_text": r.report_text,
-            "activity": r.activity,
-            "hazard": r.hazard,
-            "sif_potential": r.sif_potential,
-            "lifesaving_rule": r.lifesaving_rule,
-            "analysis_status": r.analysis_status,
-            "timestamp": r.timestamp,
-        }
-        for r in reports
-    ]
+    return [serialize_report(r) for r in reports]
 
 
 @app.get("/reports/{report_id}")
@@ -121,22 +127,7 @@ def get_report(report_id: int, db: Session = Depends(get_db)):
     if report is None:
         return {"error": f"No report found with id {report_id}"}
 
-    return {
-        "id": report.id,
-        "report_text": report.report_text,
-        "activity": report.activity,
-        "hazard": report.hazard,
-        "energy": report.energy,
-        "exposure": report.exposure,
-        "critical_control": report.critical_control,
-        "barrier_failure": report.barrier_failure,
-        "potential_consequence": report.potential_consequence,
-        "sif_potential": report.sif_potential,
-        "lifesaving_rule": report.lifesaving_rule,
-        "evidence": report.evidence,
-        "analysis_status": report.analysis_status,
-        "timestamp": report.timestamp,
-    }
+    return serialize_report(report)
 @app.get("/reports/{report_id}/similar")
 def get_similar_reports(report_id: int, top_k: int = 5, db: Session = Depends(get_db)):
     report = db.query(SafetyReport).filter(SafetyReport.id == report_id).first()
@@ -153,10 +144,16 @@ def get_similar_reports(report_id: int, top_k: int = 5, db: Session = Depends(ge
         if field
     )
 
-    matches = find_similar(report.report_text, keyword_source_text=keyword_source_text, top_k=top_k)
+    # The FAISS index holds English OSHA narratives, so search with the English text.
+    query_text = report.translated_text or report.report_text
+    matches = find_similar(query_text, keyword_source_text=keyword_source_text, top_k=top_k)
+    for m in matches:
+        m["similarity"] = distance_to_similarity(m["distance"])
     return {
         "report_id": report.id,
         "report_text": report.report_text,
+        "query_text": query_text,
+        "keywords_from": keyword_source_text,
         "similar_reports": matches,
     }
 @app.post("/precursors/discover")
@@ -188,6 +185,7 @@ def list_precursors(db: Session = Depends(get_db)):
             "lifesaving_rule": p.lifesaving_rule,
             "occurrence_count": p.occurrence_count,
             "sif_related_count": p.sif_related_count,
+            "evidence_report_ids": p.evidence_report_ids,
             "validation_status": p.validation_status,
             "last_updated": p.last_updated,
         }

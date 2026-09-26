@@ -37,9 +37,9 @@ const statusLabel = (validationStatus, revisionCount) => {
 }
 
 const ACTION_STYLES = {
-  validated: "bg-emerald-500/15 text-emerald-300",
-  modified: "bg-amber-500/15 text-amber-300",
-  rejected: "bg-rose-500/15 text-rose-300",
+  validated: "bg-green-50 text-green-800",
+  modified: "bg-amber-50 text-amber-800",
+  rejected: "bg-red-50 text-red-700",
 }
 
 // Converts a backend report (snake_case) into the field names the UI uses.
@@ -93,7 +93,7 @@ const toUiPrecursor = (p) => ({
   validationStatus: p.validation_status || "pending",
 })
 
-const BAR_COLORS = ["bg-rose-500", "bg-amber-500", "bg-blue-500", "bg-indigo-500", "bg-emerald-500"]
+const BAR_COLORS = ["bg-[#15617a]", "bg-teal-700", "bg-teal-600", "bg-teal-500", "bg-teal-400"]
 
 // Counts reports per Life-Saving Rule for the dashboard bars.
 const buildRuleChart = (reports) => {
@@ -215,11 +215,11 @@ export default function App() {
   // SIF Potential badge styling
   const getSifBadge = (potential) => {
     if (potential === "High") {
-      return "bg-rose-500/20 text-rose-400 border border-rose-500/30"
+      return "bg-red-50 text-red-700 border border-red-200"
     } else if (potential === "Medium") {
-      return "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+      return "bg-amber-50 text-amber-800 border border-amber-200"
     }
-    return "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+    return "bg-green-50 text-green-800 border border-green-200"
   }
 
   // Handle New Report Submission
@@ -309,163 +309,120 @@ export default function App() {
     return r.sifPotential === filterSeverity
   })
 
+  const NAV_ITEMS = [
+    { key: "dashboard", label: "Dashboard", icon: TrendingUp },
+    { key: "reports", label: "Safety Reports", icon: FileText },
+    { key: "new-report", label: "New Report", icon: PlusCircle },
+    { key: "analysis", label: "Report Analysis", icon: Activity },
+    { key: "similar", label: "Similar Reports", icon: Search },
+    { key: "precursors", label: "Recurring Precursors", icon: Layers },
+    { key: "validation", label: "HSE Validation", icon: UserCheck },
+  ]
+  const activeLabel = NAV_ITEMS.find((n) => n.key === activeTab)?.label || ""
+
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-100">
-      {/* Sidebar Navigation */}
-      <aside className="w-64 border-r border-slate-800 bg-slate-900/70 flex flex-col justify-between shrink-0">
-        <div>
-          <div className="p-5 flex items-center gap-3 border-b border-slate-800">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 to-amber-500 flex items-center justify-center shadow-lg shadow-rose-950">
-              <Shield className="w-6 h-6 text-white" />
+    <div className="min-h-screen flex flex-col bg-[#f3f5f8] text-slate-900">
+      {/* Top utility strip */}
+      <div className="bg-[#0b2a3c] text-slate-200 text-xs">
+        <div className="max-w-7xl mx-auto px-6 py-1.5 flex flex-wrap items-center justify-between gap-2">
+          <span>Smart India Hackathon 2026 · Prototype for Oil India Limited (HSE)</span>
+          <span className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${isLive ? "bg-green-400" : "bg-amber-400"}`}></span>
+            {isLive ? "Analysis server connected" : "Analysis server offline · showing sample data"}
+          </span>
+        </div>
+      </div>
+
+      {/* Masthead */}
+      <header className="bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-md border-2 border-[#15617a] flex items-center justify-center text-[#15617a]">
+              <Shield className="w-7 h-7" />
             </div>
             <div>
-              <h1 className="font-bold text-lg tracking-tight leading-none text-white">SIFLens</h1>
-              <span className="text-xs text-amber-400 font-mono tracking-wider font-semibold">SIH 2026 HSE INTEL</span>
+              <h1 className="text-2xl font-bold tracking-tight text-[#0b2a3c] leading-tight">SIFLens</h1>
+              <div className="text-sm text-slate-600">Safety Barrier &amp; SIF Precursor Intelligence System</div>
             </div>
           </div>
-
-          <nav className="p-3 space-y-1">
-            <button
-              onClick={() => setActiveTab("dashboard")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                activeTab === "dashboard" ? "bg-rose-600/20 text-rose-400 border border-rose-500/30" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
-              }`}
-            >
-              <TrendingUp className="w-4 h-4" />
-              1. Dashboard
-            </button>
-
-            <button
-              onClick={() => setActiveTab("reports")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                activeTab === "reports" ? "bg-rose-600/20 text-rose-400 border border-rose-500/30" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              2. Safety Reports
-            </button>
-
-            <button
-              onClick={() => setActiveTab("new-report")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                activeTab === "new-report" ? "bg-rose-600/20 text-rose-400 border border-rose-500/30" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
-              }`}
-            >
-              <PlusCircle className="w-4 h-4" />
-              3. New Report
-            </button>
-
-            <button
-              onClick={() => setActiveTab("analysis")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                activeTab === "analysis" ? "bg-rose-600/20 text-rose-400 border border-rose-500/30" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
-              }`}
-            >
-              <Activity className="w-4 h-4" />
-              4. Report Analysis
-            </button>
-
-            <button
-              onClick={() => setActiveTab("similar")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                activeTab === "similar" ? "bg-rose-600/20 text-rose-400 border border-rose-500/30" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
-              }`}
-            >
-              <Search className="w-4 h-4" />
-              5. Similar Reports
-            </button>
-
-            <button
-              onClick={() => setActiveTab("precursors")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                activeTab === "precursors" ? "bg-rose-600/20 text-rose-400 border border-rose-500/30" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
-              }`}
-            >
-              <Layers className="w-4 h-4" />
-              6. Recurring Precursors
-            </button>
-
-            <button
-              onClick={() => setActiveTab("validation")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                activeTab === "validation" ? "bg-rose-600/20 text-rose-400 border border-rose-500/30" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
-              }`}
-            >
-              <UserCheck className="w-4 h-4" />
-              7. HSE Validation
-            </button>
-          </nav>
+          <div className="text-right">
+            <div className="text-xs uppercase tracking-wider text-slate-500">Console</div>
+            <div className="text-sm font-semibold text-slate-800">HSE Officer</div>
+          </div>
         </div>
+        <div className="h-1 bg-gradient-to-r from-[#15617a] via-[#15617a] to-[#e0a526]"></div>
+      </header>
 
-        <div className="p-4 border-t border-slate-800 bg-slate-900/40">
-          <div className="text-xs text-slate-400">Target Backend API</div>
-          <div className={`font-mono text-xs mt-0.5 ${isLive ? "text-emerald-400" : "text-amber-400"}`}>
-            {isLive ? "FastAPI: Connected (localhost:8000)" : "FastAPI: Offline, showing mock data"}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-1">SIH 2026 · Teammate-Frontend</div>
+      {/* Primary navigation */}
+      <nav className="bg-[#15617a] shadow-sm sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-6 flex overflow-x-auto">
+          {NAV_ITEMS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-[3px] transition ${
+                activeTab === key
+                  ? "bg-white/10 text-white border-[#e0a526]"
+                  : "text-teal-50/90 border-transparent hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
         </div>
-      </aside>
+      </nav>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col overflow-y-auto">
-        {/* Top Header */}
-        <header className="h-16 border-b border-slate-800 bg-slate-900/40 px-8 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-4">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Active View:</span>
-            <span className="text-sm font-semibold text-slate-200 capitalize">{activeTab.replace("-", " ")}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              FastAPI Bridge: {isLive ? "Live" : "Mock Data"}
-            </span>
-            <div className="text-xs text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
-              HSE Officer Console
-            </div>
-          </div>
-        </header>
+      <main className="flex-1">
+        {/* Page title and breadcrumb */}
+        <div className="max-w-7xl mx-auto px-6 pt-6">
+          <div className="text-xs text-slate-500">Home <ChevronRight className="inline w-3 h-3" /> {activeLabel}</div>
+          <h2 className="text-xl font-bold text-[#0b2a3c] mt-1">{activeLabel}</h2>
+        </div>
 
         {validationAlert && (
-          <div className="bg-emerald-950/80 border-b border-emerald-500/40 text-emerald-200 px-8 py-2.5 text-xs font-medium flex items-center gap-2">
-            <Check className="w-4 h-4 text-emerald-400" />
-            {validationAlert}
+          <div className="max-w-7xl mx-auto px-6 mt-4">
+            <div className="bg-green-50 border border-green-200 border-l-4 border-l-green-700 text-green-900 px-4 py-2.5 text-[13px] font-medium flex items-center gap-2 rounded-md">
+              <Check className="w-4 h-4 text-green-800" />
+              {validationAlert}
+            </div>
           </div>
         )}
 
-        <div className="p-8 space-y-6">
+        <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
           {/* 1. DASHBOARD VIEW */}
           {activeTab === "dashboard" && (
             <div className="space-y-6">
               {/* Stat Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 shadow-sm">
-                  <div className="text-xs font-medium text-slate-400">Total Safety Reports</div>
-                  <div className="text-3xl font-bold text-slate-100 mt-2">{activeReports.length}</div>
-                  <div className="text-xs text-slate-500 mt-1">
+                <div className="bg-white border border-slate-200 border-t-4 border-t-[#15617a] rounded-md p-5 shadow-sm">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Safety Reports</div>
+                  <div className="text-3xl font-bold text-[#0b2a3c] mt-2">{activeReports.length}</div>
+                  <div className="text-[13px] text-slate-500 mt-1">
                     {reportsThisWeek} logged in the last 7 days{rejectedCount > 0 ? ` · ${rejectedCount} rejected (excluded)` : ""}
                   </div>
                 </div>
 
-                <div className="bg-rose-950/30 border border-rose-900/50 rounded-xl p-5 shadow-sm">
-                  <div className="text-xs font-medium text-rose-300">High SIF-Potential Reports</div>
-                  <div className="text-3xl font-bold text-rose-400 mt-2">{highSifReports.length}</div>
-                  <div className="text-xs text-rose-400/80 mt-1">
+                <div className="bg-white border border-slate-200 border-t-4 border-t-red-700 rounded-md p-5 shadow-sm">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">High SIF-Potential Reports</div>
+                  <div className="text-3xl font-bold text-red-700 mt-2">{highSifReports.length}</div>
+                  <div className="text-[13px] text-slate-500 mt-1">
                     {activeReports.length ? Math.round((highSifReports.length / activeReports.length) * 100) : 0}% of active reports rated High by the AI
                   </div>
                 </div>
 
-                <div className="bg-amber-950/30 border border-amber-900/50 rounded-xl p-5 shadow-sm">
-                  <div className="text-xs font-medium text-amber-300">Recurring Precursors</div>
-                  <div className="text-3xl font-bold text-amber-400 mt-2">{precursors.length}</div>
-                  <div className="text-xs text-amber-400/80 mt-1">
+                <div className="bg-white border border-slate-200 border-t-4 border-t-[#e0a526] rounded-md p-5 shadow-sm">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Recurring Precursors</div>
+                  <div className="text-3xl font-bold text-amber-800 mt-2">{precursors.length}</div>
+                  <div className="text-[13px] text-slate-500 mt-1">
                     {precursors[0] ? `Top: ${precursors[0].lifesavingRule} (${precursors[0].occurrenceCount} reports)` : "Run discovery on the Precursors page"}
                   </div>
                 </div>
 
-                <div className="bg-indigo-950/30 border border-indigo-900/50 rounded-xl p-5 shadow-sm">
-                  <div className="text-xs font-medium text-indigo-300">Pending HSE Validations</div>
-                  <div className="text-3xl font-bold text-indigo-400 mt-2">{pendingReports.length}</div>
-                  <div className="text-xs text-indigo-400/80 mt-1">
+                <div className="bg-white border border-slate-200 border-t-4 border-t-slate-500 rounded-md p-5 shadow-sm">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pending HSE Validations</div>
+                  <div className="text-3xl font-bold text-teal-800 mt-2">{pendingReports.length}</div>
+                  <div className="text-[13px] text-slate-500 mt-1">
                     {validatedCount} validated · {rejectedCount} rejected
                   </div>
                 </div>
@@ -473,22 +430,22 @@ export default function App() {
 
               {/* Barrier Chart + Quick Summary */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-slate-900/70 border border-slate-800 rounded-xl p-6">
+                <div className="lg:col-span-2 bg-white border border-slate-200 rounded-md p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-semibold text-slate-200">Reports by Life-Saving Rule</h2>
-                    <span className="text-xs text-slate-400 font-mono">Top 5 · % of all reports</span>
+                    <h2 className="text-sm font-semibold text-slate-800">Reports by Life-Saving Rule</h2>
+                    <span className="text-[13px] text-slate-500 font-mono">Top 5 · % of all reports</span>
                   </div>
                   <div className="space-y-4">
                     {ruleChart.length === 0 && (
-                      <div className="text-xs text-slate-500">No analysed reports with a Life-Saving Rule yet.</div>
+                      <div className="text-[13px] text-slate-500">No analysed reports with a Life-Saving Rule yet.</div>
                     )}
                     {ruleChart.map((item, idx) => (
                       <div key={idx} className="space-y-1.5">
-                        <div className="flex justify-between text-xs font-medium">
-                          <span className="text-slate-300">{item.label}</span>
-                          <span className="text-slate-400">{item.count} reports ({item.pct}%)</span>
+                        <div className="flex justify-between text-[13px] font-medium">
+                          <span className="text-slate-700">{item.label}</span>
+                          <span className="text-slate-500">{item.count} reports ({item.pct}%)</span>
                         </div>
-                        <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
                           <div
                             className={`h-full ${item.color} rounded-full transition-all duration-500`}
                             style={{ width: `${item.pct}%` }}
@@ -499,27 +456,27 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-6 flex flex-col justify-between">
+                <div className="bg-white border border-slate-200 rounded-md p-6 flex flex-col justify-between">
                   <div>
-                    <h2 className="text-sm font-semibold text-slate-200 mb-2">Life-Saving Rule (LSR) Focus</h2>
+                    <h2 className="text-sm font-semibold text-slate-800 mb-2">Life-Saving Rule (LSR) Focus</h2>
                     {topRule ? (
                       <>
-                        <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                          <span className="text-rose-400 font-semibold">{topRule.label}</span> is the most frequent rule, in {topRule.count} of {activeReports.length} active reports.{" "}
+                        <p className="text-[13px] text-slate-500 leading-relaxed mb-4">
+                          <span className="text-red-700 font-semibold">{topRule.label}</span> is the most frequent rule, in {topRule.count} of {activeReports.length} active reports.{" "}
                           {topRuleHighSif} of those are rated High SIF potential.
                         </p>
-                        <div className="p-3 bg-slate-800/80 rounded-lg border border-slate-700/60 text-xs space-y-1">
-                          <div className="font-semibold text-slate-200">Suggested focus:</div>
-                          <div className="text-slate-400">Review the {topRule.label} controls in these {topRule.count} reports and validate the matching precursor pattern.</div>
+                        <div className="p-3 bg-slate-50 rounded-md border border-slate-200 text-[13px] space-y-1">
+                          <div className="font-semibold text-slate-800">Suggested focus:</div>
+                          <div className="text-slate-500">Review the {topRule.label} controls in these {topRule.count} reports and validate the matching precursor pattern.</div>
                         </div>
                       </>
                     ) : (
-                      <p className="text-xs text-slate-400 leading-relaxed mb-4">No Life-Saving Rule data yet. Analyse a report to populate this.</p>
+                      <p className="text-[13px] text-slate-500 leading-relaxed mb-4">No Life-Saving Rule data yet. Analyse a report to populate this.</p>
                     )}
                   </div>
                   <button
                     onClick={() => setActiveTab("new-report")}
-                    className="mt-6 w-full py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-lg transition"
+                    className="mt-6 w-full py-2 bg-[#15617a] hover:bg-[#0f4c60] text-white text-[13px] font-semibold rounded-md transition"
                   >
                     + Log New Incident / Near Miss
                   </button>
@@ -527,53 +484,53 @@ export default function App() {
               </div>
 
               {/* Recent Reports Table */}
-              <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-6">
+              <div className="bg-white border border-slate-200 rounded-md p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-sm font-semibold text-slate-200">Recent Safety Reports</h2>
+                  <h2 className="text-sm font-semibold text-slate-800">Recent Safety Reports</h2>
                   <button 
                     onClick={() => setActiveTab("reports")}
-                    className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1"
+                    className="text-[13px] text-[#15617a] hover:underline font-medium flex items-center gap-1"
                   >
                     View All Reports <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="border-b border-slate-800 text-slate-400">
+                  <table className="w-full text-left text-[13px]">
+                    <thead className="border-b-2 border-slate-200 bg-slate-50 text-slate-600 uppercase text-[11px] tracking-wider">
                       <tr>
-                        <th className="pb-3 font-medium">Report ID</th>
-                        <th className="pb-3 font-medium">Type</th>
-                        <th className="pb-3 font-medium">Location</th>
-                        <th className="pb-3 font-medium">SIF Potential</th>
-                        <th className="pb-3 font-medium">Barrier Failure</th>
-                        <th className="pb-3 font-medium">Status</th>
-                        <th className="pb-3 font-medium">Date</th>
-                        <th className="pb-3 font-medium">Action</th>
+                        <th className="py-2.5 px-3 font-semibold">Report ID</th>
+                        <th className="py-2.5 px-3 font-semibold">Type</th>
+                        <th className="py-2.5 px-3 font-semibold">Location</th>
+                        <th className="py-2.5 px-3 font-semibold">SIF Potential</th>
+                        <th className="py-2.5 px-3 font-semibold">Barrier Failure</th>
+                        <th className="py-2.5 px-3 font-semibold">Status</th>
+                        <th className="py-2.5 px-3 font-semibold">Date</th>
+                        <th className="py-2.5 px-3 font-semibold">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                    <tbody className="divide-y divide-slate-100 text-slate-700">
                       {reports.slice(0, 4).map((r) => (
-                        <tr key={r.id} className="hover:bg-slate-800/30 transition">
-                          <td className="py-3 font-mono font-medium text-slate-200">{r.id}</td>
-                          <td className="py-3">{r.type}</td>
-                          <td className="py-3">{r.location}</td>
-                          <td className="py-3">
-                            <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${getSifBadge(r.sifPotential)}`}>
+                        <tr key={r.id} className="hover:bg-slate-50 transition">
+                          <td className="py-3 px-3 font-mono font-medium text-slate-800">{r.id}</td>
+                          <td className="py-3 px-3">{r.type}</td>
+                          <td className="py-3 px-3">{r.location}</td>
+                          <td className="py-3 px-3">
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${getSifBadge(r.sifPotential)}`}>
                               {r.sifPotential}
                             </span>
                           </td>
-                          <td className="py-3 text-slate-400">{r.barrierFailure}</td>
-                          <td className="py-3">
-                            <span className="text-slate-300 font-mono text-[11px]">{r.status}</span>
+                          <td className="py-3 px-3 text-slate-500">{r.barrierFailure}</td>
+                          <td className="py-3 px-3">
+                            <span className="text-slate-700 text-xs">{r.status}</span>
                           </td>
-                          <td className="py-3 text-slate-500">{r.date}</td>
-                          <td className="py-3">
+                          <td className="py-3 px-3 text-slate-500 whitespace-nowrap">{r.date}</td>
+                          <td className="py-3 px-3">
                             <button
                               onClick={() => {
                                 setSelectedReport(r)
                                 setActiveTab("analysis")
                               }}
-                              className="text-rose-400 hover:underline font-medium"
+                              className="text-[#15617a] hover:underline font-medium"
                             >
                               Analyze
                             </button>
@@ -589,23 +546,23 @@ export default function App() {
 
           {/* 2. SAFETY REPORTS VIEW */}
           {activeTab === "reports" && (
-            <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-6 space-y-5">
+            <div className="bg-white border border-slate-200 rounded-md p-6 space-y-5">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                  <h2 className="text-base font-bold text-slate-100">Safety Reports Repository</h2>
-                  <p className="text-xs text-slate-400">Review all near-misses, unsafe acts, and high SIF precursor events.</p>
+                  <h2 className="text-base font-bold text-slate-900">Safety Reports Repository</h2>
+                  <p className="text-[13px] text-slate-500">Review all near-misses, unsafe acts, and high SIF precursor events.</p>
                 </div>
                 {/* Filter controls */}
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400">SIF Severity:</span>
+                  <span className="text-[13px] text-slate-500">SIF Severity:</span>
                   {["All", "High", "Medium", "Low"].map((level) => (
                     <button
                       key={level}
                       onClick={() => setFilterSeverity(level)}
-                      className={`px-2.5 py-1 text-xs rounded-lg font-medium transition ${
+                      className={`px-2.5 py-1 text-[13px] rounded-md font-medium transition ${
                         filterSeverity === level 
-                          ? "bg-rose-600 text-white" 
-                          : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                          ? "bg-[#15617a] text-white" 
+                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                       }`}
                     >
                       {level}
@@ -615,42 +572,42 @@ export default function App() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="border-b border-slate-800 text-slate-400">
+                <table className="w-full text-left text-[13px]">
+                  <thead className="border-b-2 border-slate-200 bg-slate-50 text-slate-600 uppercase text-[11px] tracking-wider">
                     <tr>
-                      <th className="pb-3 font-medium">Report ID</th>
-                      <th className="pb-3 font-medium">Type</th>
-                      <th className="pb-3 font-medium">Location</th>
-                      <th className="pb-3 font-medium">SIF Potential</th>
-                      <th className="pb-3 font-medium">Barrier Failure</th>
-                      <th className="pb-3 font-medium">Status</th>
-                      <th className="pb-3 font-medium">Date</th>
-                      <th className="pb-3 font-medium">Inspect</th>
+                      <th className="py-2.5 px-3 font-semibold">Report ID</th>
+                      <th className="py-2.5 px-3 font-semibold">Type</th>
+                      <th className="py-2.5 px-3 font-semibold">Location</th>
+                      <th className="py-2.5 px-3 font-semibold">SIF Potential</th>
+                      <th className="py-2.5 px-3 font-semibold">Barrier Failure</th>
+                      <th className="py-2.5 px-3 font-semibold">Status</th>
+                      <th className="py-2.5 px-3 font-semibold">Date</th>
+                      <th className="py-2.5 px-3 font-semibold">Inspect</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
                     {filteredReports.map((r) => (
-                      <tr key={r.id} className="hover:bg-slate-800/40 transition">
-                        <td className="py-3 font-mono font-medium text-slate-200">{r.id}</td>
-                        <td className="py-3">{r.type}</td>
-                        <td className="py-3">{r.location}</td>
-                        <td className="py-3">
-                          <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${getSifBadge(r.sifPotential)}`}>
+                      <tr key={r.id} className="hover:bg-slate-50 transition">
+                        <td className="py-3 px-3 font-mono font-medium text-slate-800">{r.id}</td>
+                        <td className="py-3 px-3">{r.type}</td>
+                        <td className="py-3 px-3">{r.location}</td>
+                        <td className="py-3 px-3">
+                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${getSifBadge(r.sifPotential)}`}>
                             {r.sifPotential}
                           </span>
                         </td>
-                        <td className="py-3 text-slate-400">{r.barrierFailure}</td>
-                        <td className="py-3 text-slate-300">{r.status}</td>
-                        <td className="py-3 text-slate-500 font-mono">{r.date}</td>
-                        <td className="py-3">
+                        <td className="py-3 px-3 text-slate-500">{r.barrierFailure}</td>
+                        <td className="py-3 px-3 text-slate-700">{r.status}</td>
+                        <td className="py-3 px-3 text-slate-500 whitespace-nowrap">{r.date}</td>
+                        <td className="py-3 px-3">
                           <button
                             onClick={() => {
                               setSelectedReport(r)
                               setActiveTab("analysis")
                             }}
-                            className="px-2.5 py-1 rounded bg-slate-800 hover:bg-rose-600/30 text-rose-300 border border-slate-700 text-xs transition"
+                            className="px-3 py-1 rounded bg-white hover:bg-teal-50 text-[#15617a] border border-[#15617a]/40 text-[13px] font-medium whitespace-nowrap transition"
                           >
-                            Analysis & Chain
+                            View Analysis
                           </button>
                         </td>
                       </tr>
@@ -663,21 +620,21 @@ export default function App() {
 
           {/* 3. NEW REPORT VIEW */}
           {activeTab === "new-report" && (
-            <div className="max-w-2xl mx-auto bg-slate-900/70 border border-slate-800 rounded-xl p-8 space-y-6">
+            <div className="max-w-2xl mx-auto bg-white border border-slate-200 rounded-md p-8 space-y-6">
               <div>
-                <h2 className="text-base font-bold text-slate-100">Log New Safety Observation / Incident</h2>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <h2 className="text-base font-bold text-slate-900">Log New Safety Observation / Incident</h2>
+                <p className="text-[13px] text-slate-500 mt-0.5">
                   Enter incident text. The AI pipeline analyzes energy, critical controls, and barrier failure chains.
                 </p>
               </div>
 
               <form onSubmit={handleAnalyzeReport} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Report Type</label>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Report Type</label>
                   <select
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-[13px] text-slate-800 focus:outline-none focus:border-[#15617a]"
                   >
                     <option>Near Miss</option>
                     <option>Unsafe Condition</option>
@@ -687,24 +644,24 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Location / Plant Unit</label>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Location / Plant Unit</label>
                   <input
                     type="text"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-[13px] text-slate-800 focus:outline-none focus:border-[#15617a]"
                     placeholder="e.g. Unit 4 · Catalytic Cracker"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Description / Observation</label>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Description / Observation</label>
                   <textarea
                     rows={5}
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-200 focus:outline-none focus:border-rose-500 leading-relaxed font-sans"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-md p-3 text-[13px] text-slate-800 focus:outline-none focus:border-[#15617a] leading-relaxed font-sans"
                     placeholder="Describe what happened, equipment involved, personnel actions, and controls..."
                     required
                   ></textarea>
@@ -713,7 +670,7 @@ export default function App() {
                 <button
                   type="submit"
                   disabled={isAnalyzing}
-                  className="w-full py-3 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white font-semibold text-xs rounded-lg transition shadow-lg shadow-rose-950/40 flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-[#15617a] hover:bg-[#0f4c60] text-white font-semibold text-[13px] rounded-md transition   flex items-center justify-center gap-2"
                 >
                   {isAnalyzing ? (
                     <>
@@ -735,23 +692,23 @@ export default function App() {
           {activeTab === "analysis" && (
             <div className="space-y-6">
               {/* Header card */}
-              <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="bg-white border border-slate-200 rounded-md p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm font-bold text-rose-400">{selectedReport.id}</span>
-                    <span className="text-xs bg-slate-800 px-2 py-0.5 rounded text-slate-300">{selectedReport.type}</span>
-                    <span className="text-xs text-slate-400">{selectedReport.location}</span>
+                    <span className="font-mono text-sm font-bold text-red-700">{selectedReport.id}</span>
+                    <span className="text-[13px] bg-slate-100 px-2 py-0.5 rounded text-slate-700">{selectedReport.type}</span>
+                    <span className="text-[13px] text-slate-500">{selectedReport.location}</span>
                   </div>
-                  <div className="text-sm font-semibold text-slate-100 mt-1">
+                  <div className="text-sm font-semibold text-slate-900 mt-1">
                     Activity: {selectedReport.activity}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <div className="text-[11px] text-slate-400">SIF Prediction (AI rating: High / Medium / Low)</div>
-                    <div className="text-base font-bold text-rose-400 flex items-center gap-1.5">
-                      <Flame className="w-4 h-4 text-rose-500" />
+                    <div className="text-xs text-slate-500">SIF Prediction (AI rating: High / Medium / Low)</div>
+                    <div className={`text-base font-bold flex items-center gap-1.5 ${selectedReport.sifPotential === "High" ? "text-red-700" : selectedReport.sifPotential === "Medium" ? "text-amber-700" : "text-green-800"}`}>
+                      <Flame className="w-4 h-4" />
                       {selectedReport.sifPotential} SIF Potential
                     </div>
                   </div>
@@ -759,14 +716,14 @@ export default function App() {
                     <button
                       onClick={handleReanalyze}
                       disabled={isReanalyzing}
-                      className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-60 text-slate-200 border border-slate-700 text-xs font-semibold rounded-lg transition"
+                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-60 text-slate-800 border border-slate-300 text-[13px] font-semibold rounded-md transition"
                     >
                       {isReanalyzing ? "Re-analysing..." : "Reanalyze"}
                     </button>
                   )}
                   <button
                     onClick={() => setActiveTab("validation")}
-                    className="px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-lg transition"
+                    className="px-3 py-2 bg-[#15617a] hover:bg-[#0f4c60] text-white text-[13px] font-semibold rounded-md transition"
                   >
                     Go to HSE Validation
                   </button>
@@ -774,103 +731,103 @@ export default function App() {
               </div>
 
               {/* SAFETY BARRIER CHAIN (Core SIH Deliverable) */}
-              <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-6">
+              <div className="bg-white border border-slate-200 rounded-md p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold text-slate-100 tracking-wide uppercase flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-rose-400" />
+                  <h3 className="text-sm font-bold text-slate-900 tracking-wide uppercase flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-red-700" />
                     Safety Barrier Chain
                   </h3>
-                  <span className="text-xs text-slate-400">Sequential Breakdown of Barrier Degradation</span>
+                  <span className="text-[13px] text-slate-500">Sequential Breakdown of Barrier Degradation</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-3 relative">
                   {/* Step 1: Activity */}
-                  <div className="bg-slate-950 border border-slate-800 rounded-lg p-3.5 flex flex-col justify-between">
+                  <div className="bg-slate-50 border border-slate-200 rounded-md p-3.5 flex flex-col justify-between">
                     <div>
-                      <div className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">1. Activity</div>
-                      <div className="text-xs font-semibold text-slate-200 mt-1">{selectedReport.activity}</div>
+                      <div className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">1. Activity</div>
+                      <div className="text-[13px] font-semibold text-slate-800 mt-1">{selectedReport.activity}</div>
                     </div>
-                    <div className="text-[10px] text-slate-500 mt-3 pt-2 border-t border-slate-800">Operational Phase</div>
+                    <div className="text-[11px] text-slate-500 mt-3 pt-2 border-t border-slate-200">Operational Phase</div>
                   </div>
 
                   {/* Step 2: Hazard / Energy */}
-                  <div className="bg-slate-950 border border-amber-900/40 rounded-lg p-3.5 flex flex-col justify-between">
+                  <div className="bg-slate-50 border border-amber-200 rounded-md p-3.5 flex flex-col justify-between">
                     <div>
-                      <div className="text-[10px] font-bold uppercase text-amber-500 tracking-wider">2. Hazard / Energy</div>
-                      <div className="text-xs font-semibold text-amber-300 mt-1">{selectedReport.hazard}</div>
-                      <div className="text-[11px] text-slate-400 mt-1 font-mono">{selectedReport.energy}</div>
+                      <div className="text-[11px] font-bold uppercase text-amber-700 tracking-wider">2. Hazard / Energy</div>
+                      <div className="text-[13px] font-semibold text-amber-800 mt-1">{selectedReport.hazard}</div>
+                      <div className="text-xs text-slate-500 mt-1 font-mono">{selectedReport.energy}</div>
                     </div>
-                    <div className="text-[10px] text-amber-500/80 mt-3 pt-2 border-t border-slate-800">Hazardous Source</div>
+                    <div className="text-[11px] text-amber-700 mt-3 pt-2 border-t border-slate-200">Hazardous Source</div>
                   </div>
 
                   {/* Step 3: Critical Control */}
-                  <div className="bg-slate-950 border border-emerald-900/40 rounded-lg p-3.5 flex flex-col justify-between">
+                  <div className="bg-slate-50 border border-green-200 rounded-md p-3.5 flex flex-col justify-between">
                     <div>
-                      <div className="text-[10px] font-bold uppercase text-emerald-400 tracking-wider">3. Critical Control</div>
-                      <div className="text-xs font-semibold text-emerald-300 mt-1">{selectedReport.criticalControl}</div>
+                      <div className="text-[11px] font-bold uppercase text-green-800 tracking-wider">3. Critical Control</div>
+                      <div className="text-[13px] font-semibold text-green-800 mt-1">{selectedReport.criticalControl}</div>
                     </div>
-                    <div className="text-[10px] text-emerald-400/80 mt-3 pt-2 border-t border-slate-800">Primary Defense</div>
+                    <div className="text-[11px] text-green-800 mt-3 pt-2 border-t border-slate-200">Primary Defense</div>
                   </div>
 
                   {/* Step 4: Barrier Failure */}
-                  <div className="bg-rose-950/30 border border-rose-800/60 rounded-lg p-3.5 flex flex-col justify-between">
+                  <div className="bg-red-50 border border-red-200 rounded-md p-3.5 flex flex-col justify-between">
                     <div>
-                      <div className="text-[10px] font-bold uppercase text-rose-400 tracking-wider">4. Barrier Failure</div>
-                      <div className="text-xs font-semibold text-rose-300 mt-1">{selectedReport.barrierFailure}</div>
+                      <div className="text-[11px] font-bold uppercase text-red-700 tracking-wider">4. Barrier Failure</div>
+                      <div className="text-[13px] font-semibold text-red-700 mt-1">{selectedReport.barrierFailure}</div>
                     </div>
-                    <div className="text-[10px] text-rose-400/80 mt-3 pt-2 border-t border-rose-900/40">Latent/Active Breach</div>
+                    <div className="text-[11px] text-red-700 mt-3 pt-2 border-t border-red-200">Latent/Active Breach</div>
                   </div>
 
                   {/* Step 5: Exposure */}
-                  <div className="bg-slate-950 border border-amber-900/40 rounded-lg p-3.5 flex flex-col justify-between">
+                  <div className="bg-slate-50 border border-amber-200 rounded-md p-3.5 flex flex-col justify-between">
                     <div>
-                      <div className="text-[10px] font-bold uppercase text-amber-400 tracking-wider">5. Exposure</div>
-                      <div className="text-xs font-semibold text-amber-200 mt-1">{selectedReport.exposure}</div>
+                      <div className="text-[11px] font-bold uppercase text-amber-800 tracking-wider">5. Exposure</div>
+                      <div className="text-[13px] font-semibold text-amber-800 mt-1">{selectedReport.exposure}</div>
                     </div>
-                    <div className="text-[10px] text-amber-500/80 mt-3 pt-2 border-t border-slate-800">Vulnerability Zone</div>
+                    <div className="text-[11px] text-amber-700 mt-3 pt-2 border-t border-slate-200">Vulnerability Zone</div>
                   </div>
 
                   {/* Step 6: Potential Consequence */}
-                  <div className="bg-rose-950/40 border border-rose-600 rounded-lg p-3.5 flex flex-col justify-between shadow-md shadow-rose-950">
+                  <div className="bg-red-50 border border-red-300 rounded-md p-3.5 flex flex-col justify-between">
                     <div>
-                      <div className="text-[10px] font-bold uppercase text-rose-400 tracking-wider">6. Potential Consequence</div>
-                      <div className="text-xs font-bold text-rose-200 mt-1">{selectedReport.potentialConsequence}</div>
+                      <div className="text-[11px] font-bold uppercase text-red-700 tracking-wider">6. Potential Consequence</div>
+                      <div className="text-[13px] font-bold text-red-800 mt-1">{selectedReport.potentialConsequence}</div>
                     </div>
-                    <div className="text-[10px] font-semibold text-rose-400 mt-3 pt-2 border-t border-rose-900/60">SIF Event</div>
+                    <div className="text-[11px] font-semibold text-red-700 mt-3 pt-2 border-t border-red-200">SIF Event</div>
                   </div>
                 </div>
               </div>
 
               {/* Original and translated text */}
               {selectedReport.description && (
-                <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white border border-slate-200 rounded-md p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-2">
+                    <h4 className="text-[13px] font-bold text-slate-800 uppercase tracking-wider mb-2">
                       Original Report{selectedReport.detectedLanguage ? ` (${selectedReport.detectedLanguage})` : ""}
                     </h4>
-                    <p className="text-xs text-slate-300 leading-relaxed">{selectedReport.description}</p>
+                    <p className="text-[13px] text-slate-700 leading-relaxed">{selectedReport.description}</p>
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-2">English Text Used for Analysis</h4>
-                    <p className="text-xs text-slate-300 leading-relaxed">{selectedReport.translatedText || selectedReport.description}</p>
+                    <h4 className="text-[13px] font-bold text-slate-800 uppercase tracking-wider mb-2">English Text Used for Analysis</h4>
+                    <p className="text-[13px] text-slate-700 leading-relaxed">{selectedReport.translatedText || selectedReport.description}</p>
                   </div>
                 </div>
               )}
 
               {/* Life-Saving Rule & Extracted Evidence */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider">Life-Saving Rule Implicated</h4>
-                  <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-lg">
-                    <div className="text-xs font-semibold text-amber-400">{selectedReport.lifeSavingRule}</div>
-                    <div className="text-xs text-slate-400 mt-1">Violation classified under Mandatory Corporate Safety Rules.</div>
+                <div className="bg-white border border-slate-200 rounded-md p-5 space-y-3">
+                  <h4 className="text-[13px] font-bold text-slate-800 uppercase tracking-wider">Life-Saving Rule Implicated</h4>
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-md">
+                    <div className="text-[13px] font-semibold text-amber-800">{selectedReport.lifeSavingRule}</div>
+                    <div className="text-[13px] text-slate-500 mt-1">Violation classified under Mandatory Corporate Safety Rules.</div>
                   </div>
                 </div>
 
-                <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider">Extracted Semantic Evidence</h4>
-                  <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-lg">
-                    <p className="text-xs text-slate-300 italic">"{selectedReport.evidence}"</p>
+                <div className="bg-white border border-slate-200 rounded-md p-5 space-y-3">
+                  <h4 className="text-[13px] font-bold text-slate-800 uppercase tracking-wider">Extracted Semantic Evidence</h4>
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-md">
+                    <p className="text-[13px] text-slate-700 italic">"{selectedReport.evidence}"</p>
                   </div>
                 </div>
               </div>
@@ -879,10 +836,10 @@ export default function App() {
 
           {/* 5. SIMILAR REPORTS (Semantic Similarity) */}
           {activeTab === "similar" && (
-            <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-6 space-y-6">
+            <div className="bg-white border border-slate-200 rounded-md p-6 space-y-6">
               <div>
-                <h2 className="text-base font-bold text-slate-100">Similar Historical Incidents (OSHA memory)</h2>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <h2 className="text-base font-bold text-slate-900">Similar Historical Incidents (OSHA memory)</h2>
+                <p className="text-[13px] text-slate-500 mt-0.5">
                   The selected report is compared with about 3,000 historical OSHA incident narratives stored in a FAISS vector index.
                   Match score = how close the two texts are in meaning (cosine similarity of MiniLM sentence embeddings, 0 to 100%).
                   Matches that also share a keyword with the report's hazard, energy, control or barrier failure are ranked first.
@@ -890,16 +847,16 @@ export default function App() {
               </div>
 
               {isLive && (
-                <div className="p-4 bg-slate-950 border border-rose-900/40 rounded-xl space-y-2">
+                <div className="p-4 bg-slate-50 border border-red-200 rounded-md space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-[11px] font-bold uppercase text-rose-400 tracking-wider">Compared report</div>
+                    <div className="text-xs font-bold uppercase text-red-700 tracking-wider">Compared report</div>
                     <select
                       value={selectedReport.id}
                       onChange={(e) => {
                         const found = reports.find((r) => String(r.id) === e.target.value)
                         if (found) setSelectedReport(found)
                       }}
-                      className="bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200"
+                      className="bg-white border border-slate-200 rounded px-2 py-1 text-[13px] text-slate-800"
                     >
                       {reports.map((r) => (
                         <option key={r.id} value={r.id}>
@@ -908,63 +865,63 @@ export default function App() {
                       ))}
                     </select>
                   </div>
-                  <div className="text-xs text-slate-200">{selectedReport.translatedText || selectedReport.description}</div>
+                  <div className="text-[13px] text-slate-800">{selectedReport.translatedText || selectedReport.description}</div>
                   {similarData?.keywords_from && (
-                    <div className="text-[11px] text-slate-500">Keywords taken from: {similarData.keywords_from}</div>
+                    <div className="text-xs text-slate-500">Keywords taken from: {similarData.keywords_from}</div>
                   )}
                 </div>
               )}
 
-              {similarLoading && <div className="text-xs text-slate-400">Searching the historical index...</div>}
+              {similarLoading && <div className="text-[13px] text-slate-500">Searching the historical index...</div>}
               {isLive && !similarLoading && !similarData && (
-                <div className="text-xs text-amber-400">Could not load similar reports. Check that the backend is running and the FAISS index exists.</div>
+                <div className="text-[13px] text-amber-800">Could not load similar reports. Check that the backend is running and the FAISS index exists.</div>
               )}
 
               <div className="space-y-3">
                 {isLive && similarData && similarData.similar_reports.map((m) => (
-                  <div key={`${m.report_id}-${m.rank}`} className="p-4 bg-slate-950 border border-slate-800 rounded-xl flex flex-col sm:flex-row justify-between items-start gap-4">
+                  <div key={`${m.report_id}-${m.rank}`} className="p-4 bg-slate-50 border border-slate-200 rounded-md flex flex-col sm:flex-row justify-between items-start gap-4">
                     <div className="space-y-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-xs text-slate-400">#{m.rank} · OSHA {m.report_id}</span>
-                        {m.event_type && <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">{m.event_type}</span>}
-                        {m.nature && <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">{m.nature}</span>}
-                        <span className={`text-[11px] px-1.5 py-0.5 rounded ${m.keyword_match ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-800 text-slate-400"}`}>
+                        <span className="font-mono text-[13px] text-slate-500">#{m.rank} · OSHA {m.report_id}</span>
+                        {m.event_type && <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">{m.event_type}</span>}
+                        {m.nature && <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">{m.nature}</span>}
+                        <span className={`text-xs px-1.5 py-0.5 rounded ${m.keyword_match ? "bg-green-50 text-green-800" : "bg-slate-100 text-slate-500"}`}>
                           {m.keyword_match ? "Meaning + keyword match" : "Meaning match only"}
                         </span>
                       </div>
-                      <div className="text-xs text-slate-200 leading-relaxed">{m.narrative}</div>
-                      {m.employer && <div className="text-[11px] text-slate-500">{m.employer}</div>}
+                      <div className="text-[13px] text-slate-800 leading-relaxed">{m.narrative}</div>
+                      {m.employer && <div className="text-xs text-slate-500">{m.employer}</div>}
                     </div>
 
                     <div className="w-full sm:w-44 shrink-0 space-y-1">
-                      <div className="flex justify-between text-xs font-medium">
-                        <span className="text-slate-400">Match Score</span>
-                        <span className="text-rose-400 font-bold">{m.similarity}%</span>
+                      <div className="flex justify-between text-[13px] font-medium">
+                        <span className="text-slate-500">Match Score</span>
+                        <span className="text-red-700 font-bold">{m.similarity}%</span>
                       </div>
-                      <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-amber-500 to-rose-500 rounded-full" style={{ width: `${m.similarity}%` }}></div>
+                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-teal-700 rounded-full" style={{ width: `${m.similarity}%` }}></div>
                       </div>
                     </div>
                   </div>
                 ))}
 
                 {!isLive && mockSimilarReports.map((report) => (
-                  <div key={report.id} className="p-4 bg-slate-950 border border-slate-800 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div key={report.id} className="p-4 bg-slate-50 border border-slate-200 rounded-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-slate-400">{report.id}</span>
-                        <span className="text-xs text-slate-500 font-mono">· {report.date} · mock data</span>
+                        <span className="font-mono text-[13px] text-slate-500">{report.id}</span>
+                        <span className="text-[13px] text-slate-500 font-mono">· {report.date} · mock data</span>
                       </div>
-                      <div className="text-sm font-semibold text-slate-200">{report.title}</div>
-                      <div className="text-xs text-rose-400/90">{report.consequence}</div>
+                      <div className="text-sm font-semibold text-slate-800">{report.title}</div>
+                      <div className="text-[13px] text-red-700">{report.consequence}</div>
                     </div>
                     <div className="w-full sm:w-48 shrink-0 space-y-1">
-                      <div className="flex justify-between text-xs font-medium">
-                        <span className="text-slate-400">Match Score</span>
-                        <span className="text-rose-400 font-bold">{report.similarity}%</span>
+                      <div className="flex justify-between text-[13px] font-medium">
+                        <span className="text-slate-500">Match Score</span>
+                        <span className="text-red-700 font-bold">{report.similarity}%</span>
                       </div>
-                      <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-amber-500 to-rose-500 rounded-full" style={{ width: `${report.similarity}%` }}></div>
+                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-teal-700 rounded-full" style={{ width: `${report.similarity}%` }}></div>
                       </div>
                     </div>
                   </div>
@@ -975,11 +932,11 @@ export default function App() {
 
           {/* 6. RECURRING PRECURSORS */}
           {activeTab === "precursors" && (
-            <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-6 space-y-6">
+            <div className="bg-white border border-slate-200 rounded-md p-6 space-y-6">
               <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                 <div>
-                  <h2 className="text-base font-bold text-slate-100">Recurring SIF Precursors & Pattern Detection</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <h2 className="text-base font-bold text-slate-900">Recurring SIF Precursors & Pattern Detection</h2>
+                  <p className="text-[13px] text-slate-500 mt-0.5">
                     Analysed reports grouped by the Life-Saving Rule the AI assigned. A rule seen in 2 or more reports becomes a recurring precursor.
                     Counts are out of the {isLive ? activeReports.length : "mock"} active reports (HSE-rejected reports are excluded), not the OSHA history.
                   </p>
@@ -988,7 +945,7 @@ export default function App() {
                   <button
                     onClick={handleDiscoverPrecursors}
                     disabled={isDiscovering}
-                    className="shrink-0 px-3 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-60 text-white text-xs font-semibold rounded-lg transition"
+                    className="shrink-0 px-3 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white text-[13px] font-semibold rounded-md transition"
                   >
                     {isDiscovering ? "Re-running..." : "Re-run Discovery"}
                   </button>
@@ -996,32 +953,32 @@ export default function App() {
               </div>
 
               {precursors.length === 0 && (
-                <div className="text-xs text-slate-400">No recurring patterns yet. Click "Re-run Discovery" after analysing a few reports.</div>
+                <div className="text-[13px] text-slate-500">No recurring patterns yet. Click "Re-run Discovery" after analysing a few reports.</div>
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {precursors.map((p) => (
-                  <div key={p.id} className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+                  <div key={p.id} className="bg-slate-50 border border-slate-200 rounded-md p-5 space-y-4">
                     <div className="flex justify-between items-start gap-2">
                       <div>
-                        <h3 className="text-sm font-bold text-slate-100">{p.name}</h3>
-                        <div className="text-xs text-rose-400 font-medium mt-0.5">
+                        <h3 className="text-sm font-bold text-slate-900">{p.name}</h3>
+                        <div className="text-[13px] text-red-700 font-medium mt-0.5">
                           {p.sifRelatedCount} / {p.occurrenceCount} rated High SIF
                         </div>
                       </div>
-                      <span className="text-xs px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 capitalize">
+                      <span className="text-[13px] px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200 capitalize">
                         {p.validationStatus}
                       </span>
                     </div>
 
-                    <div className="space-y-2 text-xs text-slate-300">
+                    <div className="space-y-2 text-[13px] text-slate-700">
                       <div>
                         <span className="text-slate-500 font-medium">Life-Saving Rule: </span>
                         {p.lifesavingRule}
                       </div>
                       <div>
                         <span className="text-slate-500 font-medium">Total Report Count: </span>
-                        <span className="font-semibold text-slate-100">{p.occurrenceCount} reports</span>
+                        <span className="font-semibold text-slate-900">{p.occurrenceCount} reports</span>
                       </div>
                       {p.evidenceReportIds.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5">
@@ -1030,7 +987,7 @@ export default function App() {
                             <button
                               key={id}
                               onClick={() => openReport(id)}
-                              className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-rose-600/30 text-rose-300 font-mono text-[11px]"
+                              className="px-1.5 py-0.5 rounded bg-white border border-[#15617a]/30 hover:bg-teal-50 text-[#15617a] font-mono text-xs"
                             >
                               #{id}
                             </button>
@@ -1047,11 +1004,11 @@ export default function App() {
           {/* 7. HSE VALIDATION */}
           {activeTab === "validation" && (
             <div className="max-w-4xl mx-auto space-y-6">
-              <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-8 space-y-6">
+              <div className="bg-white border border-slate-200 rounded-md p-8 space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                   <div>
-                    <h2 className="text-base font-bold text-slate-100">HSE Officer Validation & Sign-Off</h2>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <h2 className="text-base font-bold text-slate-900">HSE Officer Validation & Sign-Off</h2>
+                    <p className="text-[13px] text-slate-500 mt-0.5">
                       Validate to sign off the AI result. Modify to add information and send the report back through the AI.
                       Reject to keep the report on record but remove it from evaluation.
                     </p>
@@ -1066,7 +1023,7 @@ export default function App() {
                           setIsModifying(false)
                         }
                       }}
-                      className="shrink-0 bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs text-slate-200"
+                      className="shrink-0 bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-[13px] text-slate-800"
                     >
                       {[...pendingReports, ...reports.filter((r) => r.validationStatus !== "pending")].map((r) => (
                         <option key={r.id} value={r.id}>
@@ -1077,22 +1034,22 @@ export default function App() {
                   )}
                 </div>
 
-                <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-md space-y-2">
                   <div className="flex justify-between items-center gap-2">
-                    <span className="font-mono text-xs text-rose-400 font-bold">Report #{selectedReport.id} · {selectedReport.type} · {selectedReport.location}</span>
-                    <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${getSifBadge(selectedReport.sifPotential)}`}>
+                    <span className="font-mono text-[13px] text-red-700 font-bold">Report #{selectedReport.id} · {selectedReport.type} · {selectedReport.location}</span>
+                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${getSifBadge(selectedReport.sifPotential)}`}>
                       {selectedReport.sifPotential} SIF Potential
                     </span>
                   </div>
-                  <div className="text-xs text-slate-300">{selectedReport.translatedText || selectedReport.description}</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-400 pt-1">
-                    <div>Life-Saving Rule: <span className="text-slate-200">{selectedReport.lifeSavingRule}</span></div>
-                    <div>Barrier Failure: <span className="text-slate-200">{selectedReport.barrierFailure}</span></div>
-                    <div>Potential Consequence: <span className="text-slate-200">{selectedReport.potentialConsequence}</span></div>
-                    <div>Status: <span className="text-slate-200 font-mono">{selectedReport.status}</span></div>
+                  <div className="text-[13px] text-slate-700">{selectedReport.translatedText || selectedReport.description}</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[13px] text-slate-500 pt-1">
+                    <div>Life-Saving Rule: <span className="text-slate-800">{selectedReport.lifeSavingRule}</span></div>
+                    <div>Barrier Failure: <span className="text-slate-800">{selectedReport.barrierFailure}</span></div>
+                    <div>Potential Consequence: <span className="text-slate-800">{selectedReport.potentialConsequence}</span></div>
+                    <div>Status: <span className="text-slate-800 font-mono">{selectedReport.status}</span></div>
                   </div>
                   {selectedReport.hseAdditionalInfo && (
-                    <div className="mt-2 p-2.5 rounded bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 whitespace-pre-line">
+                    <div className="mt-2 p-2.5 rounded bg-amber-50 border border-amber-200 text-[13px] text-amber-800 whitespace-pre-line">
                       <span className="font-semibold">HSE information used in re-analysis: </span>
                       {selectedReport.hseAdditionalInfo}
                     </div>
@@ -1100,35 +1057,35 @@ export default function App() {
                 </div>
 
                 {selectedReport.validationStatus === "rejected" ? (
-                  <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-800/60 text-xs text-rose-200">
+                  <div className="p-3 rounded-md bg-red-50 border border-red-200 text-[13px] text-red-800">
                     This report was rejected. It stays in the records below but is excluded from dashboard counts and precursor discovery.
                   </div>
                 ) : (
                   <>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-1">HSE Officer Name</label>
+                        <label className="block text-[13px] font-semibold text-slate-700 mb-1">HSE Officer Name</label>
                         <input
                           value={validatorName}
                           onChange={(e) => setValidatorName(e.target.value)}
                           placeholder="e.g. R. Sharma"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-[13px] text-slate-800 focus:outline-none focus:border-[#15617a]"
                         />
                       </div>
                       <div className="sm:col-span-2">
-                        <label className="block text-xs font-semibold text-slate-300 mb-1">Commentary / Rationale</label>
+                        <label className="block text-[13px] font-semibold text-slate-700 mb-1">Commentary / Rationale</label>
                         <input
                           value={hseComment}
                           onChange={(e) => setHseComment(e.target.value)}
                           placeholder="Field verification notes, interviews, corrective actions..."
-                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-[13px] text-slate-800 focus:outline-none focus:border-[#15617a]"
                         />
                       </div>
                     </div>
 
                     {isModifying ? (
-                      <div className="space-y-2 p-4 rounded-xl border border-amber-700/50 bg-amber-950/20">
-                        <label className="block text-xs font-semibold text-amber-200">
+                      <div className="space-y-2 p-4 rounded-md border border-amber-300 bg-amber-50">
+                        <label className="block text-[13px] font-semibold text-amber-800">
                           What should the AI take into account? (added to the report and re-analysed)
                         </label>
                         <textarea
@@ -1136,13 +1093,13 @@ export default function App() {
                           value={additionalInfo}
                           onChange={(e) => setAdditionalInfo(e.target.value)}
                           placeholder="e.g. The valve was double-block isolated and only the tag was missing. No one was inside the line of fire."
-                          className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-200 focus:outline-none focus:border-amber-500 leading-relaxed font-sans"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-md p-3 text-[13px] text-slate-800 focus:outline-none focus:border-amber-600 leading-relaxed font-sans"
                         ></textarea>
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleValidateAction("modify")}
                             disabled={isSubmittingValidation}
-                            className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-60 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-2"
+                            className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white text-[13px] font-semibold rounded-md transition flex items-center justify-center gap-2"
                           >
                             {isSubmittingValidation ? (
                               <>
@@ -1159,7 +1116,7 @@ export default function App() {
                           <button
                             onClick={() => setIsModifying(false)}
                             disabled={isSubmittingValidation}
-                            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition"
+                            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[13px] font-semibold rounded-md transition"
                           >
                             Cancel
                           </button>
@@ -1170,7 +1127,7 @@ export default function App() {
                         <button
                           onClick={() => handleValidateAction("validate")}
                           disabled={isSubmittingValidation}
-                          className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5"
+                          className="flex-1 py-2.5 bg-green-700 hover:bg-green-800 disabled:opacity-60 text-white text-[13px] font-semibold rounded-md transition flex items-center justify-center gap-1.5"
                         >
                           <CheckCircle2 className="w-4 h-4" />
                           Validate AI Analysis
@@ -1179,7 +1136,7 @@ export default function App() {
                         <button
                           onClick={() => setIsModifying(true)}
                           disabled={isSubmittingValidation}
-                          className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-60 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5"
+                          className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white text-[13px] font-semibold rounded-md transition flex items-center justify-center gap-1.5"
                         >
                           <Edit3 className="w-4 h-4" />
                           Modify (add info & re-analyse)
@@ -1188,7 +1145,7 @@ export default function App() {
                         <button
                           onClick={() => handleValidateAction("reject")}
                           disabled={isSubmittingValidation}
-                          className="flex-1 py-2.5 bg-rose-700 hover:bg-rose-600 disabled:opacity-60 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5"
+                          className="flex-1 py-2.5 bg-red-700 hover:bg-[#15617a] disabled:opacity-60 text-white text-[13px] font-semibold rounded-md transition flex items-center justify-center gap-1.5"
                         >
                           <XCircle className="w-4 h-4" />
                           Reject (exclude)
@@ -1200,46 +1157,46 @@ export default function App() {
               </div>
 
               {/* Validation documentation */}
-              <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-6 space-y-4">
+              <div className="bg-white border border-slate-200 rounded-md p-6 space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-100">Validation Documentation</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <h3 className="text-sm font-bold text-slate-900">Validation Documentation</h3>
+                  <p className="text-[13px] text-slate-500 mt-0.5">
                     Every HSE decision, with the AI result it was made on. Stored in the report_validations table.
                   </p>
                 </div>
                 {validationRecords.length === 0 ? (
-                  <div className="text-xs text-slate-500">No validation decisions recorded yet.</div>
+                  <div className="text-[13px] text-slate-500">No validation decisions recorded yet.</div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="border-b border-slate-800 text-slate-400">
+                    <table className="w-full text-left text-[13px]">
+                      <thead className="border-b-2 border-slate-200 bg-slate-50 text-slate-600 uppercase text-[11px] tracking-wider">
                         <tr>
-                          <th className="pb-2 font-medium">Date</th>
-                          <th className="pb-2 font-medium">Report</th>
-                          <th className="pb-2 font-medium">Decision</th>
-                          <th className="pb-2 font-medium">Officer</th>
-                          <th className="pb-2 font-medium">AI result at the time</th>
-                          <th className="pb-2 font-medium">Comment / Info added</th>
+                          <th className="py-2.5 px-3 font-semibold">Date</th>
+                          <th className="py-2.5 px-3 font-semibold">Report</th>
+                          <th className="py-2.5 px-3 font-semibold">Decision</th>
+                          <th className="py-2.5 px-3 font-semibold">Officer</th>
+                          <th className="py-2.5 px-3 font-semibold">AI result at the time</th>
+                          <th className="py-2.5 px-3 font-semibold">Comment / Info added</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
                         {validationRecords.map((v) => (
                           <tr key={v.id} className="align-top">
-                            <td className="py-2 font-mono text-slate-500 whitespace-nowrap">{String(v.timestamp || "").replace("T", " ").slice(0, 16)}</td>
-                            <td className="py-2">
-                              <button onClick={() => openReport(v.report_id)} className="font-mono text-rose-300 hover:underline">
+                            <td className="py-2 px-3 font-mono text-slate-500 whitespace-nowrap">{String(v.timestamp || "").replace("T", " ").slice(0, 16)}</td>
+                            <td className="py-2 px-3">
+                              <button onClick={() => openReport(v.report_id)} className="font-mono text-[#15617a] hover:underline">
                                 #{v.report_id}
                               </button>
                               {v.revision > 0 && <span className="text-slate-500"> rev {v.revision}</span>}
                             </td>
-                            <td className="py-2">
+                            <td className="py-2 px-3">
                               <span className={`px-1.5 py-0.5 rounded capitalize ${ACTION_STYLES[v.action] || ""}`}>{v.action}</span>
                             </td>
-                            <td className="py-2">{v.validator}</td>
-                            <td className="py-2 text-slate-400">{v.sif_potential} · {v.lifesaving_rule}</td>
-                            <td className="py-2 text-slate-400">
+                            <td className="py-2 px-3">{v.validator}</td>
+                            <td className="py-2 px-3 text-slate-500">{v.sif_potential} · {v.lifesaving_rule}</td>
+                            <td className="py-2 px-3 text-slate-500">
                               {v.comment}
-                              {v.additional_info && <div className="text-amber-300/90">+ {v.additional_info}</div>}
+                              {v.additional_info && <div className="text-amber-800">+ {v.additional_info}</div>}
                             </td>
                           </tr>
                         ))}
@@ -1252,6 +1209,13 @@ export default function App() {
           )}
         </div>
       </main>
+
+      <footer className="bg-[#0b2a3c] text-slate-300 text-xs mt-8">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap justify-between gap-2">
+          <span>SIFLens · Safety Barrier &amp; SIF Precursor Intelligence · SIH 2026 prototype</span>
+          <span>AI results are advisory and require HSE officer validation.</span>
+        </div>
+      </footer>
     </div>
   )
 }

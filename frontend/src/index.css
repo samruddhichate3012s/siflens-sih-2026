@@ -9,6 +9,7 @@
 
   body {
     @apply bg-canvas text-ink font-sans antialiased;
+    background-color: #f3f5f8;
     font-size: 14px;
   }
 

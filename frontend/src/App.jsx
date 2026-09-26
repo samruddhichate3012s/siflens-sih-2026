@@ -1,4 +1,5 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
+import { api } from "./api"
 import { 
   Shield, 
   AlertTriangle, 
@@ -26,6 +27,28 @@ import {
   barrierChartData 
 } from "./data/mockData"
 
+const toUiReport = (r) => ({
+  ...initialReports[0],
+  id: r.id,
+  type: "Near Miss",
+  location: r.detected_language ? `Reported in ${r.detected_language}` : "Field report",
+  description: r.report_text,
+  translatedText: r.translated_text,
+  detectedLanguage: r.detected_language,
+  sifPotential: r.sif_potential,
+  barrierFailure: r.barrier_failure,
+  status: "Pending Validation",
+  date: (r.timestamp || new Date().toISOString()).split("T")[0],
+  activity: r.activity,
+  hazard: r.hazard,
+  energy: r.energy,
+  exposure: r.exposure,
+  criticalControl: r.critical_control,
+  consequence: r.potential_consequence,
+  lifesavingRule: r.lifesaving_rule,
+  evidence: r.evidence,
+})
+
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard")
   const [reports, setReports] = useState(initialReports)
@@ -37,11 +60,26 @@ export default function App() {
   // New report form state
   const [formData, setFormData] = useState({
     type: "Near Miss",
-    location: "Plant 2 — Boiler Feed Station",
+    location: "Plant 2 ï¿½ Boiler Feed Station",
     description: "During routine line flushing, contractor unlocked the high-pressure steam bypass valve before receiving clearance from the control room operator. Zero-energy lockout was bypassed."
   })
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+    const [isLive, setIsLive] = useState(false)
 
+  useEffect(() => {
+    api.getReports().then((data) => {
+      if (!data) return
+      const list = Array.isArray(data) ? data : data.reports || []
+      if (list.length === 0) return
+      const mapped = list.map(toUiReport)
+      setReports(mapped)
+      setSelectedReport(mapped[0])
+      setIsLive(true)
+    })
+  }, [])
+
+
+  
   // SIF Potential badge styling
   const getSifBadge = (potential) => {
     if (potential === "High") {
@@ -53,36 +91,21 @@ export default function App() {
   }
 
   // Handle New Report Submission
-  const handleAnalyzeReport = (e) => {
+    
+    const handleAnalyzeReport = async (e) => {
     e.preventDefault()
     setIsAnalyzing(true)
-
-    setTimeout(() => {
-      const newId = `REP-2026-0${Math.floor(Math.random() * 900) + 100}`
-      const createdReport = {
-        id: newId,
-        type: formData.type,
-        location: formData.location,
-        sifPotential: "High",
-        barrierFailure: "Unauthorized Bypass / Zero-Energy Breach",
-        status: "Pending Validation",
-        date: new Date().toISOString().split("T")[0],
-        activity: "High-Pressure Steam Bypass Operation",
-        hazard: "Superheated Steam (350°C, 40 bar)",
-        energy: "Thermal & High-Pressure Fluid",
-        exposure: "Direct Line of Blast / Severe Skin Contact",
-        criticalControl: "Permit-to-Work Isolation Sign-off & Lockout Box",
-        potentialConsequence: "Catastrophic Scalding / Fatal Blast SIF",
-        lifeSavingRule: "LSR #3: Safe Isolation of Pressurized Systems",
-        evidence: "Contractor bypassed permit verification steps; lockout key was not stored in the communal lockbox.",
-        confidence: 96
-      }
-
-      setReports([createdReport, ...reports])
-      setSelectedReport(createdReport)
-      setIsAnalyzing(false)
+    try {
+      const result = await api.analyzeReport(formData.description)
+      const created = toUiReport(result)
+      setReports((prev) => [created, ...prev])
+      setSelectedReport(created)
       setActiveTab("analysis")
-    }, 800)
+    } catch (err) {
+      alert("Analysis failed. Is the backend running?")
+    } finally {
+      setIsAnalyzing(false)
+    }
   }
 
   // HSE Validation Actions
@@ -201,7 +224,7 @@ export default function App() {
         <div className="p-4 border-t border-slate-800 bg-slate-900/40">
           <div className="text-xs text-slate-400">Target Backend API</div>
           <div className="font-mono text-xs text-emerald-400 mt-0.5">FastAPI: Ready for Connect</div>
-          <div className="text-[11px] text-slate-500 mt-1">SIH 2026 • Teammate-Frontend</div>
+          <div className="text-[11px] text-slate-500 mt-1">SIH 2026 ï¿½ Teammate-Frontend</div>
         </div>
       </aside>
 
@@ -216,7 +239,7 @@ export default function App() {
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              FastAPI Bridge: Mock Active
+              FastAPI Bridge: {isLive ? "Live" : "Mock Active"}
             </span>
             <div className="text-xs text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
               HSE Officer Console
@@ -239,13 +262,13 @@ export default function App() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 shadow-sm">
                   <div className="text-xs font-medium text-slate-400">Total Safety Reports</div>
-                  <div className="text-3xl font-bold text-slate-100 mt-2">248</div>
+                  <div className="text-3xl font-bold text-slate-100 mt-2">{reports.length}</div>
                   <div className="text-xs text-slate-500 mt-1">+14 logged this week</div>
                 </div>
 
                 <div className="bg-rose-950/30 border border-rose-900/50 rounded-xl p-5 shadow-sm">
                   <div className="text-xs font-medium text-rose-300">High SIF-Potential Reports</div>
-                  <div className="text-3xl font-bold text-rose-400 mt-2">34</div>
+                  <div className="text-3xl font-bold text-rose-400 mt-2">{reports.filter(r => r.sifPotential === "High").length}</div>
                   <div className="text-xs text-rose-400/80 mt-1">Requires immediate barrier audit</div>
                 </div>
 
@@ -474,7 +497,7 @@ export default function App() {
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
-                    placeholder="e.g. Unit 4 — Catalytic Cracker"
+                    placeholder="e.g. Unit 4 ï¿½ Catalytic Cracker"
                     required
                   />
                 </div>
@@ -649,7 +672,7 @@ export default function App() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs text-slate-400">{report.id}</span>
-                        <span className="text-xs text-slate-500 font-mono">• {report.date}</span>
+                        <span className="text-xs text-slate-500 font-mono">ï¿½ {report.date}</span>
                       </div>
                       <div className="text-sm font-semibold text-slate-200">{report.title}</div>
                       <div className="text-xs text-rose-400/90">{report.consequence}</div>

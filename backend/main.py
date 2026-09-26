@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
 from database.database import Base, engine, get_db
 from database.models import SafetyReport
@@ -14,6 +15,12 @@ from ai.translate import detect_and_translate
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="SIFLens API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class ReportAnalyzeRequest(BaseModel):

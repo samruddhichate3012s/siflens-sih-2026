@@ -126,6 +126,7 @@ export default function App() {
   const [additionalInfo, setAdditionalInfo] = useState("")
   const [isSubmittingValidation, setIsSubmittingValidation] = useState(false)
   const [validationRecords, setValidationRecords] = useState([])
+  const [isReanalyzing, setIsReanalyzing] = useState(false)
   const [validationAlert, setValidationAlert] = useState(null)
 
   // New report form state
@@ -236,6 +237,26 @@ export default function App() {
       alert("Analysis failed. Is the backend running?")
     } finally {
       setIsAnalyzing(false)
+    }
+  }
+
+  const handleReanalyze = async () => {
+    setIsReanalyzing(true)
+    try {
+      const result = await api.reanalyzeReport(selectedReport.id)
+      const updated = toUiReport(result)
+      setReports((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
+      setSelectedReport(updated)
+      setValidationAlert(
+        `Report #${updated.id} re-analysed: SIF ${result.previous_sif_potential || "?"} → ${updated.sifPotential}, rule ${result.previous_lifesaving_rule || "?"} → ${updated.lifeSavingRule}.`
+      )
+      setTimeout(() => setValidationAlert(null), 8000)
+      await api.discoverPrecursors().catch(() => null)
+      loadPrecursors()
+    } catch (err) {
+      alert(`Re-analysis failed: ${err.message}`)
+    } finally {
+      setIsReanalyzing(false)
     }
   }
 
@@ -734,6 +755,15 @@ export default function App() {
                       {selectedReport.sifPotential} SIF Potential
                     </div>
                   </div>
+                  {isLive && (
+                    <button
+                      onClick={handleReanalyze}
+                      disabled={isReanalyzing}
+                      className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-60 text-slate-200 border border-slate-700 text-xs font-semibold rounded-lg transition"
+                    >
+                      {isReanalyzing ? "Re-analysing..." : "Reanalyze"}
+                    </button>
+                  )}
                   <button
                     onClick={() => setActiveTab("validation")}
                     className="px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-lg transition"

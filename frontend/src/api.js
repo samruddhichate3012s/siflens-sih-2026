@@ -41,6 +41,14 @@ export const api = {
     }
   },
 
+  // Re-run the AI on an existing report (e.g. after the SIF definitions changed)
+  reanalyzeReport: async (reportId) => {
+    const response = await fetch(`${API_BASE_URL}/reports/${reportId}/reanalyze`, { method: "POST" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || `Reanalyze failed (${response.status})`);
+    return data;
+  },
+
   // Fetch historically similar reports for a given analyzed report
   getSimilarReports: async (reportId, topK = 5) => {
     try {

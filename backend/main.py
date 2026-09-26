@@ -268,18 +268,25 @@ def reanalyze_report(report_id: int, db: Session = Depends(get_db)):
     if report is None:
         return {"error": f"No report found with id {report_id}"}
 
+    old_sif, old_rule = report.sif_potential, report.lifesaving_rule
     result = extract_safety_fields(analysis_text(report))
+    if "error" in result:
+        # Keep the previous analysis rather than overwriting it with "Unknown".
+        raise HTTPException(status_code=502, detail=result["error"])
     apply_extraction(report, result)
+
+    # A sign-off applies to the old result; if the AI's answer changed, HSE reviews it again.
+    changed = (report.sif_potential, report.lifesaving_rule) != (old_sif, old_rule)
+    if changed and report.validation_status == "validated":
+        report.validation_status = "pending"
 
     db.commit()
     db.refresh(report)
 
-    return {
-        "id": report.id,
-        "lifesaving_rule": report.lifesaving_rule,
-        "sif_potential": report.sif_potential,
-        "analysis_status": report.analysis_status,
-    }
+    data = serialize_report(report)
+    data["previous_sif_potential"] = old_sif
+    data["previous_lifesaving_rule"] = old_rule
+    return data
 VALID_STATUSES = {"confirmed", "modified", "rejected"}
 
 

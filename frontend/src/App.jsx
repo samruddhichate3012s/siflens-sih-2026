@@ -29,6 +29,19 @@ import {
 
 const NOT_RECORDED = "Not recorded"
 
+const statusLabel = (validationStatus, revisionCount) => {
+  if (validationStatus === "validated") return "Validated"
+  if (validationStatus === "rejected") return "Rejected (excluded)"
+  if (revisionCount > 0) return `Re-analysed (rev ${revisionCount}) · Pending Validation`
+  return "Pending Validation"
+}
+
+const ACTION_STYLES = {
+  validated: "bg-emerald-500/15 text-emerald-300",
+  modified: "bg-amber-500/15 text-amber-300",
+  rejected: "bg-rose-500/15 text-rose-300",
+}
+
 // Converts a backend report (snake_case) into the field names the UI uses.
 // Missing values show "Not recorded" instead of borrowing mock data.
 const toUiReport = (r) => ({
@@ -40,7 +53,10 @@ const toUiReport = (r) => ({
   detectedLanguage: r.detected_language,
   sifPotential: r.sif_potential || "Unknown",
   barrierFailure: r.barrier_failure || NOT_RECORDED,
-  status: r.analysis_status === "analyzed" ? "AI Analyzed" : (r.analysis_status || "Pending"),
+  validationStatus: r.validation_status || "pending",
+  revisionCount: r.revision_count || 0,
+  hseAdditionalInfo: r.hse_additional_info,
+  status: statusLabel(r.validation_status, r.revision_count),
   date: (r.timestamp || new Date().toISOString()).split("T")[0],
   activity: r.activity || NOT_RECORDED,
   hazard: r.hazard || NOT_RECORDED,
@@ -105,6 +121,11 @@ export default function App() {
   const [selectedReport, setSelectedReport] = useState(initialReports[0])
   const [filterSeverity, setFilterSeverity] = useState("All")
   const [hseComment, setHseComment] = useState("")
+  const [validatorName, setValidatorName] = useState("")
+  const [isModifying, setIsModifying] = useState(false)
+  const [additionalInfo, setAdditionalInfo] = useState("")
+  const [isSubmittingValidation, setIsSubmittingValidation] = useState(false)
+  const [validationRecords, setValidationRecords] = useState([])
   const [validationAlert, setValidationAlert] = useState(null)
 
   // New report form state
@@ -119,6 +140,11 @@ export default function App() {
   const [isDiscovering, setIsDiscovering] = useState(false)
   const [similarData, setSimilarData] = useState(null)
   const [similarLoading, setSimilarLoading] = useState(false)
+
+  const loadValidationRecords = () =>
+    api.getAllValidations().then((data) => {
+      if (Array.isArray(data)) setValidationRecords(data)
+    })
 
   const loadPrecursors = () =>
     api.getPrecursors().then((data) => {
@@ -136,6 +162,7 @@ export default function App() {
       setIsLive(true)
     })
     loadPrecursors()
+    loadValidationRecords()
   }, [])
 
   // Similar Reports: ask the backend for FAISS matches for the selected report.
@@ -170,11 +197,15 @@ export default function App() {
   }
 
   // Dashboard numbers, all computed from the loaded reports and precursors.
-  const ruleChart = isLive ? buildRuleChart(reports) : barrierChartData
-  const highSifReports = reports.filter((r) => r.sifPotential === "High")
+  // Reports rejected by HSE stay in the list but are left out of every metric.
+  const activeReports = reports.filter((r) => r.validationStatus !== "rejected")
+  const rejectedCount = reports.length - activeReports.length
+  const ruleChart = isLive ? buildRuleChart(activeReports) : barrierChartData
+  const highSifReports = activeReports.filter((r) => r.sifPotential === "High")
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
-  const reportsThisWeek = reports.filter((r) => r.date >= weekAgo).length
-  const pendingPrecursors = precursors.filter((p) => String(p.validationStatus).toLowerCase() === "pending")
+  const reportsThisWeek = activeReports.filter((r) => r.date >= weekAgo).length
+  const pendingReports = activeReports.filter((r) => r.validationStatus === "pending")
+  const validatedCount = activeReports.filter((r) => r.validationStatus === "validated").length
   const topRule = ruleChart[0]
   const topRuleHighSif = topRule ? highSifReports.filter((r) => r.lifeSavingRule === topRule.label).length : 0
 
@@ -208,24 +239,48 @@ export default function App() {
     }
   }
 
-  // HSE Validation Actions
-  const handleValidateAction = (actionType) => {
-    const updated = reports.map((r) => {
-      if (r.id === selectedReport.id) {
-        return {
-          ...r,
-          status: actionType === "confirm" ? "Validated (High SIF)" : actionType === "modify" ? "Modified to Medium SIF" : "Rejected SIF"
-        }
+  // HSE Validation Actions (saved in the backend)
+  const handleValidateAction = async (action) => {
+    if (!isLive) {
+      alert("Validation needs the backend. Start Uvicorn and refresh.")
+      return
+    }
+    if (!validatorName.trim()) {
+      alert("Enter the HSE officer name first.")
+      return
+    }
+    if (action === "modify" && !additionalInfo.trim()) {
+      alert("Add the information the AI should consider before re-analysing.")
+      return
+    }
+    if (action === "reject" && !window.confirm(`Reject report #${selectedReport.id}? It stays in the records but is removed from evaluation.`)) {
+      return
+    }
+    setIsSubmittingValidation(true)
+    try {
+      const result = await api.validateReport(selectedReport.id, action, validatorName, hseComment, additionalInfo)
+      const updated = toUiReport(result.report)
+      setReports((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
+      setSelectedReport(updated)
+      setHseComment("")
+      setAdditionalInfo("")
+      setIsModifying(false)
+      const messages = {
+        validate: `Report #${updated.id} validated and saved to validation records.`,
+        modify: `Report #${updated.id} re-analysed with HSE input (rev ${updated.revisionCount}). New result is back for validation.`,
+        reject: `Report #${updated.id} rejected. It is kept but excluded from counts and precursors.`,
       }
-      return r
-    })
-    setReports(updated)
-    setSelectedReport({
-      ...selectedReport,
-      status: actionType === "confirm" ? "Validated (High SIF)" : actionType === "modify" ? "Modified to Medium SIF" : "Rejected SIF"
-    })
-    setValidationAlert(`HSE Validation Logged: ${actionType.toUpperCase()} applied to${selectedReport.id}`)
-    setTimeout(() => setValidationAlert(null), 4000)
+      setValidationAlert(messages[action])
+      setTimeout(() => setValidationAlert(null), 6000)
+      // Rejections and re-analysis can change the recurring patterns.
+      await api.discoverPrecursors().catch(() => null)
+      loadPrecursors()
+      loadValidationRecords()
+    } catch (err) {
+      alert(`Validation failed: ${err.message}`)
+    } finally {
+      setIsSubmittingValidation(false)
+    }
   }
 
   const filteredReports = reports.filter(r => {
@@ -364,15 +419,17 @@ export default function App() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 shadow-sm">
                   <div className="text-xs font-medium text-slate-400">Total Safety Reports</div>
-                  <div className="text-3xl font-bold text-slate-100 mt-2">{reports.length}</div>
-                  <div className="text-xs text-slate-500 mt-1">{reportsThisWeek} logged in the last 7 days</div>
+                  <div className="text-3xl font-bold text-slate-100 mt-2">{activeReports.length}</div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    {reportsThisWeek} logged in the last 7 days{rejectedCount > 0 ? ` · ${rejectedCount} rejected (excluded)` : ""}
+                  </div>
                 </div>
 
                 <div className="bg-rose-950/30 border border-rose-900/50 rounded-xl p-5 shadow-sm">
                   <div className="text-xs font-medium text-rose-300">High SIF-Potential Reports</div>
                   <div className="text-3xl font-bold text-rose-400 mt-2">{highSifReports.length}</div>
                   <div className="text-xs text-rose-400/80 mt-1">
-                    {reports.length ? Math.round((highSifReports.length / reports.length) * 100) : 0}% of all reports rated High by the AI
+                    {activeReports.length ? Math.round((highSifReports.length / activeReports.length) * 100) : 0}% of active reports rated High by the AI
                   </div>
                 </div>
 
@@ -385,10 +442,10 @@ export default function App() {
                 </div>
 
                 <div className="bg-indigo-950/30 border border-indigo-900/50 rounded-xl p-5 shadow-sm">
-                  <div className="text-xs font-medium text-indigo-300">Precursors Awaiting HSE Validation</div>
-                  <div className="text-3xl font-bold text-indigo-400 mt-2">{pendingPrecursors.length}</div>
+                  <div className="text-xs font-medium text-indigo-300">Pending HSE Validations</div>
+                  <div className="text-3xl font-bold text-indigo-400 mt-2">{pendingReports.length}</div>
                   <div className="text-xs text-indigo-400/80 mt-1">
-                    {precursors.length - pendingPrecursors.length} of {precursors.length} already reviewed
+                    {validatedCount} validated · {rejectedCount} rejected
                   </div>
                 </div>
               </div>
@@ -427,7 +484,7 @@ export default function App() {
                     {topRule ? (
                       <>
                         <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                          <span className="text-rose-400 font-semibold">{topRule.label}</span> is the most frequent rule, in {topRule.count} of {reports.length} reports.{" "}
+                          <span className="text-rose-400 font-semibold">{topRule.label}</span> is the most frequent rule, in {topRule.count} of {activeReports.length} active reports.{" "}
                           {topRuleHighSif} of those are rated High SIF potential.
                         </p>
                         <div className="p-3 bg-slate-800/80 rounded-lg border border-slate-700/60 text-xs space-y-1">
@@ -894,7 +951,7 @@ export default function App() {
                   <h2 className="text-base font-bold text-slate-100">Recurring SIF Precursors & Pattern Detection</h2>
                   <p className="text-xs text-slate-400 mt-0.5">
                     Analysed reports grouped by the Life-Saving Rule the AI assigned. A rule seen in 2 or more reports becomes a recurring precursor.
-                    Counts are out of the {isLive ? reports.length : "mock"} analysed reports, not the OSHA history.
+                    Counts are out of the {isLive ? activeReports.length : "mock"} active reports (HSE-rejected reports are excluded), not the OSHA history.
                   </p>
                 </div>
                 {isLive && (
@@ -959,61 +1016,207 @@ export default function App() {
 
           {/* 7. HSE VALIDATION */}
           {activeTab === "validation" && (
-            <div className="max-w-3xl mx-auto bg-slate-900/70 border border-slate-800 rounded-xl p-8 space-y-6">
-              <div>
-                <h2 className="text-base font-bold text-slate-100">HSE Officer Validation & Sign-Off</h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Confirm, modify, or reject AI-predicted SIF potential classifications before official regulatory archival.
-                </p>
-              </div>
-
-              <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="font-mono text-xs text-rose-400 font-bold">{selectedReport.id}</span>
-                  <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${getSifBadge(selectedReport.sifPotential)}`}>
-                    {selectedReport.sifPotential} SIF Potential
-                  </span>
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-8 space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-100">HSE Officer Validation & Sign-Off</h2>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Validate to sign off the AI result. Modify to add information and send the report back through the AI.
+                      Reject to keep the report on record but remove it from evaluation.
+                    </p>
+                  </div>
+                  {isLive && (
+                    <select
+                      value={selectedReport.id}
+                      onChange={(e) => {
+                        const found = reports.find((r) => String(r.id) === e.target.value)
+                        if (found) {
+                          setSelectedReport(found)
+                          setIsModifying(false)
+                        }
+                      }}
+                      className="shrink-0 bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs text-slate-200"
+                    >
+                      {[...pendingReports, ...reports.filter((r) => r.validationStatus !== "pending")].map((r) => (
+                        <option key={r.id} value={r.id}>
+                          #{r.id} · {r.status}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
-                <div className="text-xs font-semibold text-slate-200">{selectedReport.activity} at {selectedReport.location}</div>
-                <div className="text-xs text-slate-400">Barrier Failure: {selectedReport.barrierFailure}</div>
-                <div className="text-xs text-slate-400">Current Status: <span className="text-slate-200 font-mono">{selectedReport.status}</span></div>
+
+                <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="font-mono text-xs text-rose-400 font-bold">Report #{selectedReport.id} · {selectedReport.type} · {selectedReport.location}</span>
+                    <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${getSifBadge(selectedReport.sifPotential)}`}>
+                      {selectedReport.sifPotential} SIF Potential
+                    </span>
+                  </div>
+                  <div className="text-xs text-slate-300">{selectedReport.translatedText || selectedReport.description}</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-400 pt-1">
+                    <div>Life-Saving Rule: <span className="text-slate-200">{selectedReport.lifeSavingRule}</span></div>
+                    <div>Barrier Failure: <span className="text-slate-200">{selectedReport.barrierFailure}</span></div>
+                    <div>Potential Consequence: <span className="text-slate-200">{selectedReport.potentialConsequence}</span></div>
+                    <div>Status: <span className="text-slate-200 font-mono">{selectedReport.status}</span></div>
+                  </div>
+                  {selectedReport.hseAdditionalInfo && (
+                    <div className="mt-2 p-2.5 rounded bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 whitespace-pre-line">
+                      <span className="font-semibold">HSE information used in re-analysis: </span>
+                      {selectedReport.hseAdditionalInfo}
+                    </div>
+                  )}
+                </div>
+
+                {selectedReport.validationStatus === "rejected" ? (
+                  <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-800/60 text-xs text-rose-200">
+                    This report was rejected. It stays in the records below but is excluded from dashboard counts and precursor discovery.
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1">HSE Officer Name</label>
+                        <input
+                          value={validatorName}
+                          onChange={(e) => setValidatorName(e.target.value)}
+                          placeholder="e.g. R. Sharma"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-semibold text-slate-300 mb-1">Commentary / Rationale</label>
+                        <input
+                          value={hseComment}
+                          onChange={(e) => setHseComment(e.target.value)}
+                          placeholder="Field verification notes, interviews, corrective actions..."
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
+                        />
+                      </div>
+                    </div>
+
+                    {isModifying ? (
+                      <div className="space-y-2 p-4 rounded-xl border border-amber-700/50 bg-amber-950/20">
+                        <label className="block text-xs font-semibold text-amber-200">
+                          What should the AI take into account? (added to the report and re-analysed)
+                        </label>
+                        <textarea
+                          rows={4}
+                          value={additionalInfo}
+                          onChange={(e) => setAdditionalInfo(e.target.value)}
+                          placeholder="e.g. The valve was double-block isolated and only the tag was missing. No one was inside the line of fire."
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-200 focus:outline-none focus:border-amber-500 leading-relaxed font-sans"
+                        ></textarea>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleValidateAction("modify")}
+                            disabled={isSubmittingValidation}
+                            className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-60 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-2"
+                          >
+                            {isSubmittingValidation ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                Re-analysing with SIFLens AI...
+                              </>
+                            ) : (
+                              <>
+                                <Zap className="w-4 h-4" />
+                                Submit & Re-analyse
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setIsModifying(false)}
+                            disabled={isSubmittingValidation}
+                            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                        <button
+                          onClick={() => handleValidateAction("validate")}
+                          disabled={isSubmittingValidation}
+                          className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          Validate AI Analysis
+                        </button>
+
+                        <button
+                          onClick={() => setIsModifying(true)}
+                          disabled={isSubmittingValidation}
+                          className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-60 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                          Modify (add info & re-analyse)
+                        </button>
+
+                        <button
+                          onClick={() => handleValidateAction("reject")}
+                          disabled={isSubmittingValidation}
+                          className="flex-1 py-2.5 bg-rose-700 hover:bg-rose-600 disabled:opacity-60 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5"
+                        >
+                          <XCircle className="w-4 h-4" />
+                          Reject (exclude)
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-300">HSE Officer Commentary / Rationale</label>
-                <textarea
-                  rows={4}
-                  value={hseComment}
-                  onChange={(e) => setHseComment(e.target.value)}
-                  placeholder="Enter notes on field verification, contractor interviews, or corrective actions taken..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-200 focus:outline-none focus:border-rose-500 leading-relaxed font-sans"
-                ></textarea>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <button
-                  onClick={() => handleValidateAction("confirm")}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  Confirm AI Classification
-                </button>
-
-                <button
-                  onClick={() => handleValidateAction("modify")}
-                  className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5"
-                >
-                  <Edit3 className="w-4 h-4" />
-                  Modify Classification
-                </button>
-
-                <button
-                  onClick={() => handleValidateAction("reject")}
-                  className="flex-1 py-2.5 bg-rose-700 hover:bg-rose-600 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5"
-                >
-                  <XCircle className="w-4 h-4" />
-                  Reject / Downgrade SIF
-                </button>
+              {/* Validation documentation */}
+              <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-6 space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-100">Validation Documentation</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Every HSE decision, with the AI result it was made on. Stored in the report_validations table.
+                  </p>
+                </div>
+                {validationRecords.length === 0 ? (
+                  <div className="text-xs text-slate-500">No validation decisions recorded yet.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="border-b border-slate-800 text-slate-400">
+                        <tr>
+                          <th className="pb-2 font-medium">Date</th>
+                          <th className="pb-2 font-medium">Report</th>
+                          <th className="pb-2 font-medium">Decision</th>
+                          <th className="pb-2 font-medium">Officer</th>
+                          <th className="pb-2 font-medium">AI result at the time</th>
+                          <th className="pb-2 font-medium">Comment / Info added</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                        {validationRecords.map((v) => (
+                          <tr key={v.id} className="align-top">
+                            <td className="py-2 font-mono text-slate-500 whitespace-nowrap">{String(v.timestamp || "").replace("T", " ").slice(0, 16)}</td>
+                            <td className="py-2">
+                              <button onClick={() => openReport(v.report_id)} className="font-mono text-rose-300 hover:underline">
+                                #{v.report_id}
+                              </button>
+                              {v.revision > 0 && <span className="text-slate-500"> rev {v.revision}</span>}
+                            </td>
+                            <td className="py-2">
+                              <span className={`px-1.5 py-0.5 rounded capitalize ${ACTION_STYLES[v.action] || ""}`}>{v.action}</span>
+                            </td>
+                            <td className="py-2">{v.validator}</td>
+                            <td className="py-2 text-slate-400">{v.sif_potential} · {v.lifesaving_rule}</td>
+                            <td className="py-2 text-slate-400">
+                              {v.comment}
+                              {v.additional_info && <div className="text-amber-300/90">+ {v.additional_info}</div>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}

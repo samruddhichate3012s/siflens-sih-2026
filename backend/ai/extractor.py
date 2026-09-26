@@ -30,7 +30,11 @@ Report:
 For "lifesaving_rule", you MUST choose the single closest match from this exact list (copy the text exactly as written, do not invent new categories or cite regulations):
 {rules_list}
 
-For "sif_potential", you MUST use exactly one of: High, Medium, Low.
+For "sif_potential", you MUST use exactly one of: High, Medium, Low, decided by these definitions:
+- High: the event could realistically have caused a fatality or life-altering injury AND the critical control was missing, bypassed or failed.
+- Medium: a serious hazard was present, but a control partly worked, exposure was brief or limited, or the likely worst outcome is a recoverable injury (lost-time or medical treatment).
+- Low: the likely worst outcome is first aid, minor injury, property damage or a housekeeping/compliance issue.
+Do not rate High only because a hazard is mentioned; judge the realistic worst outcome given what the report says about controls and exposure.
 
 Respond with ONLY a valid JSON object (no extra text, no markdown fences) with exactly these keys:
 

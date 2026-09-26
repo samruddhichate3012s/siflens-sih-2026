@@ -107,6 +107,43 @@ export const api = {
     }
   },
 
+  // HSE decision on one report: action is "validate", "modify" or "reject".
+  // Modify re-runs the AI with the additional info and returns the report to pending.
+  validateReport: async (reportId, action, validator, comment = "", additionalInfo = "") => {
+    const response = await fetch(`${API_BASE_URL}/reports/${reportId}/validate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, validator, comment, additional_info: additionalInfo })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || `Validation failed (${response.status})`);
+    return data;
+  },
+
+  // Validation documentation for one report
+  getReportValidations: async (reportId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/reports/${reportId}/validations`);
+      if (!response.ok) throw new Error("Network response was not ok");
+      return await response.json();
+    } catch (error) {
+      console.error("Error fetching report validations:", error);
+      return null;
+    }
+  },
+
+  // Validation documentation across all reports
+  getAllValidations: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/validations`);
+      if (!response.ok) throw new Error("Network response was not ok");
+      return await response.json();
+    } catch (error) {
+      console.error("Error fetching validation records:", error);
+      return null;
+    }
+  },
+
   // Fetch validation history for a precursor pattern
   getPrecursorValidations: async (precursorId) => {
     try {

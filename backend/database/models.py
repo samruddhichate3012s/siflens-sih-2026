@@ -14,6 +14,10 @@ class SafetyReport(Base):
     detection_method = Column(String, nullable=True)
     report_type = Column(String, nullable=True)
     location = Column(String, nullable=True)
+    # HSE review state: pending -> validated / rejected. Modify sends it back to pending.
+    validation_status = Column(String, default="pending")
+    hse_additional_info = Column(String, nullable=True)
+    revision_count = Column(Integer, default=0)
     timestamp = Column(DateTime, default=datetime.utcnow)
     analysis_status = Column(String, default="pending")
 
@@ -48,4 +52,21 @@ class Validation(Base):
     status = Column(String, nullable=False)
     comment = Column(String, nullable=True)
     validator = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+class ReportValidation(Base):
+    """Validation documentation: one row per HSE decision on a report."""
+    __tablename__ = "report_validations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    report_id = Column(Integer, nullable=False, index=True)
+    action = Column(String, nullable=False)  # validated / modified / rejected
+    validator = Column(String, nullable=False)
+    comment = Column(String, nullable=True)
+    additional_info = Column(String, nullable=True)
+    # What the AI said at the moment of the decision
+    sif_potential = Column(String, nullable=True)
+    lifesaving_rule = Column(String, nullable=True)
+    barrier_failure = Column(String, nullable=True)
+    revision = Column(Integer, default=0)
     timestamp = Column(DateTime, default=datetime.utcnow)

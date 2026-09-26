@@ -12,6 +12,8 @@ def discover_precursors(db):
         .filter(SafetyReport.lifesaving_rule.isnot(None))
         .all()
     )
+    # Reports rejected by HSE stay in the database but are out of evaluation.
+    reports = [r for r in reports if (r.validation_status or "pending") != "rejected"]
 
     groups = defaultdict(list)
     for report in reports:
@@ -56,6 +58,16 @@ def discover_precursors(db):
             db.add(pattern)
 
         patterns_updated.append(pattern)
+
+    # A pattern whose rule no longer has enough reports (e.g. after a rejection)
+    # is kept for its validation history but its counts drop.
+    for stale in db.query(PrecursorPattern).all():
+        if stale in patterns_updated:
+            continue
+        remaining = groups.get(stale.lifesaving_rule, [])
+        stale.occurrence_count = len(remaining)
+        stale.sif_related_count = sum(1 for r in remaining if r.sif_potential == "High")
+        stale.evidence_report_ids = ",".join(str(r.id) for r in remaining)
 
     db.commit()
 

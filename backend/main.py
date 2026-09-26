@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
@@ -10,7 +10,7 @@ from ai.extractor import extract_safety_fields
 from ai.retrieval import find_similar
 from database.models import PrecursorPattern
 from ai.precursor import discover_precursors
-from database.models import Validation
+from database.models import Validation, ReportValidation
 from ai.translate import detect_and_translate
 
 Base.metadata.create_all(bind=engine)
@@ -28,6 +28,13 @@ class ReportAnalyzeRequest(BaseModel):
     report_text: str
     report_type: Optional[str] = None
     location: Optional[str] = None
+
+class ReportValidationRequest(BaseModel):
+    action: str  # validate / modify / reject
+    validator: str
+    comment: str = ""
+    additional_info: str = ""
+
 
 class ValidationRequest(BaseModel):
     status: str
@@ -55,7 +62,48 @@ def serialize_report(r):
         "lifesaving_rule": r.lifesaving_rule,
         "evidence": r.evidence,
         "analysis_status": r.analysis_status,
+        "validation_status": r.validation_status or "pending",
+        "hse_additional_info": r.hse_additional_info,
+        "revision_count": r.revision_count or 0,
         "timestamp": r.timestamp,
+    }
+
+
+def apply_extraction(report, result):
+    report.activity = result.get("activity")
+    report.hazard = result.get("hazard")
+    report.energy = result.get("energy")
+    report.exposure = result.get("exposure")
+    report.critical_control = result.get("critical_control")
+    report.barrier_failure = result.get("barrier_failure")
+    report.potential_consequence = result.get("potential_consequence")
+    report.sif_potential = result.get("sif_potential")
+    report.lifesaving_rule = result.get("lifesaving_rule")
+    report.evidence = result.get("evidence")
+    report.analysis_status = "analyzed"
+
+
+def analysis_text(report):
+    """English text for Llama, plus any extra facts HSE supplied during review."""
+    text = report.translated_text or report.report_text
+    if report.hse_additional_info:
+        text += "\n\nAdditional information from HSE review:\n" + report.hse_additional_info
+    return text
+
+
+def serialize_report_validation(v):
+    return {
+        "id": v.id,
+        "report_id": v.report_id,
+        "action": v.action,
+        "validator": v.validator,
+        "comment": v.comment,
+        "additional_info": v.additional_info,
+        "sif_potential": v.sif_potential,
+        "lifesaving_rule": v.lifesaving_rule,
+        "barrier_failure": v.barrier_failure,
+        "revision": v.revision,
+        "timestamp": v.timestamp,
     }
 
 
@@ -177,7 +225,12 @@ def run_precursor_discovery(db: Session = Depends(get_db)):
 
 @app.get("/precursors")
 def list_precursors(db: Session = Depends(get_db)):
-    patterns = db.query(PrecursorPattern).order_by(PrecursorPattern.occurrence_count.desc()).all()
+    patterns = (
+        db.query(PrecursorPattern)
+        .filter(PrecursorPattern.occurrence_count >= 2)
+        .order_by(PrecursorPattern.occurrence_count.desc())
+        .all()
+    )
     return [
         {
             "id": p.id,
@@ -215,19 +268,8 @@ def reanalyze_report(report_id: int, db: Session = Depends(get_db)):
     if report is None:
         return {"error": f"No report found with id {report_id}"}
 
-    result = extract_safety_fields(report.translated_text or report.report_text)
-
-    report.activity = result.get("activity")
-    report.hazard = result.get("hazard")
-    report.energy = result.get("energy")
-    report.exposure = result.get("exposure")
-    report.critical_control = result.get("critical_control")
-    report.barrier_failure = result.get("barrier_failure")
-    report.potential_consequence = result.get("potential_consequence")
-    report.sif_potential = result.get("sif_potential")
-    report.lifesaving_rule = result.get("lifesaving_rule")
-    report.evidence = result.get("evidence")
-    report.analysis_status = "analyzed"
+    result = extract_safety_fields(analysis_text(report))
+    apply_extraction(report, result)
 
     db.commit()
     db.refresh(report)
@@ -293,3 +335,83 @@ def get_precursor_validations(precursor_id: int, db: Session = Depends(get_db)):
         }
         for v in validations
     ]
+
+
+REPORT_ACTIONS = {"validate": "validated", "modify": "modified", "reject": "rejected"}
+
+
+@app.post("/reports/{report_id}/validate")
+def validate_report(report_id: int, payload: ReportValidationRequest, db: Session = Depends(get_db)):
+    """HSE decision on one report.
+
+    validate -> report is stored as validated.
+    modify   -> HSE adds information, the report is re-analysed with it and
+                goes back to pending so HSE reviews the new result.
+    reject   -> report is kept but excluded from evaluation (counts, precursors).
+    Every decision is written to report_validations (validation documentation).
+    """
+    report = db.query(SafetyReport).filter(SafetyReport.id == report_id).first()
+    if report is None:
+        raise HTTPException(status_code=404, detail=f"No report found with id {report_id}")
+
+    action = REPORT_ACTIONS.get(payload.action.strip().lower())
+    if action is None:
+        raise HTTPException(status_code=400, detail="action must be one of: validate, modify, reject")
+    if not payload.validator.strip():
+        raise HTTPException(status_code=400, detail="validator name is required")
+    if action == "modified" and not payload.additional_info.strip():
+        raise HTTPException(status_code=400, detail="additional_info is required when modifying")
+
+    # Record what the AI said at the time of this decision
+    record = ReportValidation(
+        report_id=report.id,
+        action=action,
+        validator=payload.validator.strip(),
+        comment=payload.comment,
+        additional_info=payload.additional_info or None,
+        sif_potential=report.sif_potential,
+        lifesaving_rule=report.lifesaving_rule,
+        barrier_failure=report.barrier_failure,
+        revision=report.revision_count or 0,
+    )
+    db.add(record)
+
+    if action == "validated":
+        report.validation_status = "validated"
+    elif action == "rejected":
+        report.validation_status = "rejected"
+    else:
+        info = payload.additional_info.strip()
+        report.hse_additional_info = (
+            f"{report.hse_additional_info}\n{info}" if report.hse_additional_info else info
+        )
+        result = extract_safety_fields(analysis_text(report))
+        if "error" in result:
+            print("REANALYSIS ERROR:", result["error"])
+        apply_extraction(report, result)
+        report.revision_count = (report.revision_count or 0) + 1
+        report.validation_status = "pending"
+
+    db.commit()
+    db.refresh(report)
+    db.refresh(record)
+
+    return {"report": serialize_report(report), "validation": serialize_report_validation(record)}
+
+
+@app.get("/reports/{report_id}/validations")
+def get_report_validations(report_id: int, db: Session = Depends(get_db)):
+    rows = (
+        db.query(ReportValidation)
+        .filter(ReportValidation.report_id == report_id)
+        .order_by(ReportValidation.timestamp.desc())
+        .all()
+    )
+    return [serialize_report_validation(v) for v in rows]
+
+
+@app.get("/validations")
+def list_report_validations(db: Session = Depends(get_db)):
+    """Validation documentation across all reports, newest first."""
+    rows = db.query(ReportValidation).order_by(ReportValidation.timestamp.desc()).all()
+    return [serialize_report_validation(v) for v in rows]

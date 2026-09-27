@@ -9,7 +9,7 @@ export const api = {
       return await response.json();
     } catch (error) {
       console.error("Error fetching reports:", error);
-      return null; // Fallback to mock data in App.jsx if backend is down
+      return null; // App.jsx shows an offline message if backend is down
     }
   },
 

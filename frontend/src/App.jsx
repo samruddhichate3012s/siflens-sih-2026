@@ -20,12 +20,6 @@ import {
   Flame,
   UserCheck
 } from "lucide-react"
-import { 
-  initialReports, 
-  mockSimilarReports, 
-  mockPrecursors, 
-  barrierChartData 
-} from "./data/mockData"
 
 const NOT_RECORDED = "Not recorded"
 
@@ -43,7 +37,7 @@ const ACTION_STYLES = {
 }
 
 // Converts a backend report (snake_case) into the field names the UI uses.
-// Missing values show "Not recorded" instead of borrowing mock data.
+// Missing values show "Not recorded".
 const toUiReport = (r) => ({
   id: r.id,
   type: r.report_type || NOT_RECORDED,
@@ -67,17 +61,6 @@ const toUiReport = (r) => ({
   lifeSavingRule: r.lifesaving_rule || NOT_RECORDED,
   evidence: r.evidence || NOT_RECORDED,
 })
-
-// Mock precursors use a different shape; convert them so one page renders both.
-const mockPrecursorsUi = mockPrecursors.map((p, idx) => ({
-  id: `mock-${idx}`,
-  name: p.name,
-  lifesavingRule: p.activities.join(", "),
-  occurrenceCount: p.reportsCount,
-  sifRelatedCount: parseInt(p.sifRelated, 10) || 0,
-  evidenceReportIds: [],
-  validationStatus: p.status,
-}))
 
 const toUiPrecursor = (p) => ({
   id: p.id,
@@ -117,8 +100,8 @@ const buildRuleChart = (reports) => {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard")
-  const [reports, setReports] = useState(initialReports)
-  const [selectedReport, setSelectedReport] = useState(initialReports[0])
+  const [reports, setReports] = useState([])
+  const [selectedReport, setSelectedReport] = useState(null)
   const [filterSeverity, setFilterSeverity] = useState("All")
   const [hseComment, setHseComment] = useState("")
   const [validatorName, setValidatorName] = useState("")
@@ -137,7 +120,7 @@ export default function App() {
   })
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [isLive, setIsLive] = useState(false)
-  const [precursors, setPrecursors] = useState(mockPrecursorsUi)
+  const [precursors, setPrecursors] = useState([])
   const [isDiscovering, setIsDiscovering] = useState(false)
   const [similarData, setSimilarData] = useState(null)
   const [similarLoading, setSimilarLoading] = useState(false)
@@ -154,12 +137,12 @@ export default function App() {
 
   useEffect(() => {
     api.getReports().then((data) => {
+      // Only real backend data is shown. No sample data when the backend is down.
       if (!data) return
       const list = Array.isArray(data) ? data : data.reports || []
-      if (list.length === 0) return
       const mapped = list.map(toUiReport)
       setReports(mapped)
-      setSelectedReport(mapped[0])
+      setSelectedReport(mapped[0] || null)
       setIsLive(true)
     })
     loadPrecursors()
@@ -201,7 +184,7 @@ export default function App() {
   // Reports rejected by HSE stay in the list but are left out of every metric.
   const activeReports = reports.filter((r) => r.validationStatus !== "rejected")
   const rejectedCount = reports.length - activeReports.length
-  const ruleChart = isLive ? buildRuleChart(activeReports) : barrierChartData
+  const ruleChart = buildRuleChart(activeReports)
   const highSifReports = activeReports.filter((r) => r.sifPotential === "High")
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
   const reportsThisWeek = activeReports.filter((r) => r.date >= weekAgo).length
@@ -328,7 +311,7 @@ export default function App() {
           <span>Smart India Hackathon 2026 · Prototype for Oil India Limited (HSE)</span>
           <span className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${isLive ? "bg-green-400" : "bg-amber-400"}`}></span>
-            {isLive ? "Analysis server connected" : "Analysis server offline · showing sample data"}
+            {isLive ? "Analysis server connected" : "Analysis server offline · start the backend and refresh"}
           </span>
         </div>
       </div>
@@ -689,7 +672,28 @@ export default function App() {
           )}
 
           {/* 4. REPORT ANALYSIS VIEW */}
-          {activeTab === "analysis" && (
+          {["analysis", "similar", "validation"].includes(activeTab) && !selectedReport && (
+            <div className="bg-white border border-slate-200 rounded-md p-10 text-center space-y-3">
+              <h2 className="text-base font-bold text-slate-900">
+                {isLive ? "No reports yet" : "Analysis server offline"}
+              </h2>
+              <p className="text-[13px] text-slate-500">
+                {isLive
+                  ? "Submit a safety report to see its AI analysis, similar incidents and HSE validation here."
+                  : "Start the backend (uvicorn main:app --reload) and refresh this page."}
+              </p>
+              {isLive && (
+                <button
+                  onClick={() => setActiveTab("new-report")}
+                  className="px-4 py-2 bg-[#15617a] text-white text-[13px] font-semibold rounded-md hover:bg-[#0f4c60]"
+                >
+                  Submit a report
+                </button>
+              )}
+            </div>
+          )}
+
+          {activeTab === "analysis" && selectedReport && (
             <div className="space-y-6">
               {/* Header card */}
               <div className="bg-white border border-slate-200 rounded-md p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -835,7 +839,7 @@ export default function App() {
           )}
 
           {/* 5. SIMILAR REPORTS (Semantic Similarity) */}
-          {activeTab === "similar" && (
+          {activeTab === "similar" && selectedReport && (
             <div className="bg-white border border-slate-200 rounded-md p-6 space-y-6">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Similar Historical Incidents (OSHA memory)</h2>
@@ -905,27 +909,6 @@ export default function App() {
                   </div>
                 ))}
 
-                {!isLive && mockSimilarReports.map((report) => (
-                  <div key={report.id} className="p-4 bg-slate-50 border border-slate-200 rounded-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[13px] text-slate-500">{report.id}</span>
-                        <span className="text-[13px] text-slate-500 font-mono">· {report.date} · mock data</span>
-                      </div>
-                      <div className="text-sm font-semibold text-slate-800">{report.title}</div>
-                      <div className="text-[13px] text-red-700">{report.consequence}</div>
-                    </div>
-                    <div className="w-full sm:w-48 shrink-0 space-y-1">
-                      <div className="flex justify-between text-[13px] font-medium">
-                        <span className="text-slate-500">Match Score</span>
-                        <span className="text-red-700 font-bold">{report.similarity}%</span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-teal-700 rounded-full" style={{ width: `${report.similarity}%` }}></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
           )}
@@ -938,7 +921,7 @@ export default function App() {
                   <h2 className="text-base font-bold text-slate-900">Recurring SIF Precursors & Pattern Detection</h2>
                   <p className="text-[13px] text-slate-500 mt-0.5">
                     Analysed reports grouped by the Life-Saving Rule the AI assigned. A rule seen in 2 or more reports becomes a recurring precursor.
-                    Counts are out of the {isLive ? activeReports.length : "mock"} active reports (HSE-rejected reports are excluded), not the OSHA history.
+                    Counts are out of the {activeReports.length} active reports (HSE-rejected reports are excluded), not the OSHA history.
                   </p>
                 </div>
                 {isLive && (
@@ -1002,7 +985,7 @@ export default function App() {
           )}
 
           {/* 7. HSE VALIDATION */}
-          {activeTab === "validation" && (
+          {activeTab === "validation" && selectedReport && (
             <div className="max-w-4xl mx-auto space-y-6">
               <div className="bg-white border border-slate-200 rounded-md p-8 space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">

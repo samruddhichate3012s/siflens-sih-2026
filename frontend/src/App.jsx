@@ -98,6 +98,85 @@ const buildRuleChart = (reports) => {
     }))
 }
 
+// Activity groups for the SIF hotspot ranking. The LLM writes activity as free
+// text, so reports are grouped by keywords in their activity, hazard and English text.
+// First match wins.
+const ACTIVITY_GROUPS = [
+  ["Driving / vehicles", ["driv", "vehicle", "truck", "tanker", "forklift", "speed"]],
+  ["Hot work / welding", ["weld", "hot work", "torch", "grind", "gas cutting", "flash fire"]],
+  ["Lifting / crane", ["crane", "sling", "lift", "rigg", "suspended load"]],
+  ["Confined space / tank entry", ["confined", "tank", "vessel entry", "sump", " pit"]],
+  ["Work at height", ["height", "scaffold", "harness", "ladder", "roof", "pipe rack"]],
+  ["Electrical work", ["electric", "panel", "fuse", "isolator", "shock"]],
+  ["Excavation", ["excavat", "dig", "trench", "buried"]],
+  ["Pressure / line opening", ["pressur", "flange", "hose", "pigging", "line open"]],
+  ["Process operation", ["compressor", "trip", "alarm", "bypass", "detector"]],
+  ["Housekeeping / general", ["spill", "floor", "slip", "first aid", "tray", "housekeeping"]],
+]
+
+const activityGroup = (r) => {
+  const text = [r.activity, r.hazard, r.translatedText, r.description].join(" ").toLowerCase()
+  const match = ACTIVITY_GROUPS.find(([, words]) => words.some((w) => text.includes(w)))
+  return match ? match[0] : "Other activities"
+}
+
+// Site = the part of the location before " - " or " · " (e.g. "Tank Farm - Tank T-108" -> "Tank Farm").
+const siteOf = (r) => {
+  if (!r.location || r.location === NOT_RECORDED) return null
+  return r.location.split(/\s+[-–·]\s+/)[0].trim() || null
+}
+
+// Ranks sites or activities by how many SIF-potential (High) reports they have,
+// then by SIF density (share of their reports that are High).
+const buildHotspots = (reports, keyOf) => {
+  const groups = {}
+  reports.forEach((r) => {
+    const key = keyOf(r)
+    if (!key) return
+    const g = (groups[key] = groups[key] || { label: key, total: 0, sif: 0, rules: {} })
+    g.total += 1
+    if (r.sifPotential === "High") {
+      g.sif += 1
+      if (r.lifeSavingRule && r.lifeSavingRule !== NOT_RECORDED) {
+        g.rules[r.lifeSavingRule] = (g.rules[r.lifeSavingRule] || 0) + 1
+      }
+    }
+  })
+  return Object.values(groups)
+    .map((g) => ({
+      ...g,
+      density: Math.round((g.sif / g.total) * 100),
+      topRule: Object.entries(g.rules).sort((a, b) => b[1] - a[1])[0]?.[0] || null,
+    }))
+    .sort((a, b) => b.sif - a.sif || b.density - a.density || b.total - a.total)
+    .slice(0, 5)
+}
+
+function HotspotList({ title, rows, emptyText }) {
+  return (
+    <div>
+      <h3 className="text-[13px] font-semibold text-slate-700 mb-3">{title}</h3>
+      {rows.length === 0 && <div className="text-[13px] text-slate-500">{emptyText}</div>}
+      <div className="space-y-3">
+        {rows.map((row, idx) => (
+          <div key={row.label} className="space-y-1">
+            <div className="flex justify-between gap-3 text-[13px]">
+              <span className="font-medium text-slate-800">{idx + 1}. {row.label}</span>
+              <span className="text-slate-500 whitespace-nowrap">
+                <span className="text-red-700 font-semibold">{row.sif} SIF</span> / {row.total} reports ({row.density}%)
+              </span>
+            </div>
+            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-full bg-red-600 rounded-full" style={{ width: `${row.density}%` }}></div>
+            </div>
+            {row.topRule && <div className="text-[12px] text-slate-500">Most failed rule: {row.topRule}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard")
   const [reports, setReports] = useState([])
@@ -192,6 +271,8 @@ export default function App() {
   const validatedCount = activeReports.filter((r) => r.validationStatus === "validated").length
   const topRule = ruleChart[0]
   const topRuleHighSif = topRule ? highSifReports.filter((r) => r.lifeSavingRule === topRule.label).length : 0
+  const siteHotspots = buildHotspots(activeReports, siteOf)
+  const activityHotspots = buildHotspots(activeReports, activityGroup)
 
 
   
@@ -463,6 +544,26 @@ export default function App() {
                   >
                     + Log New Incident / Near Miss
                   </button>
+                </div>
+              </div>
+
+              {/* SIF Hotspots: sites and activities ranked by SIF-precursor density */}
+              <div className="bg-white border border-slate-200 rounded-md p-6">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                  <h2 className="text-sm font-semibold text-slate-800">SIF Hotspots: where fatal potential is concentrated</h2>
+                  <span className="text-[13px] text-slate-500 font-mono">Ranked by SIF-potential reports · % = SIF density</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <HotspotList
+                    title="By site / location"
+                    rows={siteHotspots}
+                    emptyText="No reports with a location yet. Add the location when logging a report."
+                  />
+                  <HotspotList
+                    title="By activity"
+                    rows={activityHotspots}
+                    emptyText="No analysed reports yet."
+                  />
                 </div>
               </div>
 

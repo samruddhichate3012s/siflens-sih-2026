@@ -1,0 +1,31 @@
+id,expected_language,expected_sif,expected_rule,report_text
+E01,English,High,Energy Isolation,An electrician opened a live 440 V panel to replace a fuse without switching off or locking the isolator. He received an electric shock and was thrown back from the panel.
+E02,English,High,Hot Work,Welding was carried out on a pipeline flange near the oil separator without a hot work permit or gas test. Hydrocarbon vapour was present and a small flash fire started at the flange.
+E03,English,High,Confined Space,"A helper entered a crude oil storage tank for cleaning without gas testing, without a standby attendant and without breathing apparatus. He became dizzy inside and had to be pulled out."
+E04,English,High,Working at Height,"A painter was working on a 9 metre high pipe rack without a safety harness. He slipped and only just caught the railing, nearly falling to the ground."
+E05,English,High,Safe Mechanical Lifting,During a crane lift of a drill collar the sling snapped and the load dropped about two metres from a rigger who was standing under the suspended load.
+E06,English,Medium,Line of Fire,"A worker stood directly in front of a pressurised hose connection while disconnecting it. The hose whipped, but the whip-check restraint held it and nobody was hurt."
+E07,English,High,Driving,A tanker driver was talking on his mobile phone while driving on the field road at 70 km/h in a 30 km/h zone and nearly hit a pedestrian at the gate.
+E08,English,High,Bypassing Safety Controls,Operators bypassed the high-pressure trip on gas compressor K-3 because of nuisance alarms. The compressor ran without overpressure protection for two full shifts.
+E09,English,Medium,Work Authorisation,A contractor started excavation near a buried power cable two hours after the work permit had expired. The supervisor noticed and stopped the work before digging reached cable depth.
+E10,English,Low,Other / Not Clearly Applicable,About half a litre of lubricating oil was spilled on the workshop floor and not cleaned. A worker slipped slightly but did not fall and was not injured.
+E11,English,Low,Other / Not Clearly Applicable,The first aid box in the control room was found missing bandages and antiseptic during the weekly inspection.
+E12,English,Medium,Working at Height,A scaffold board on the second level moved when a scaffolder stepped on it. He was wearing a harness clipped to the scaffold and was not injured.
+E13,English,Medium,Energy Isolation,"Maintenance on a pump was about to start after isolation, but the lock was missing on one suction valve. The valve was closed and the missing lock was found during the pre-job check."
+E14,English,Low,Other / Not Clearly Applicable,Cable trays in the office corridor were left uncovered after cleaning. No one was hurt.
+H01,Hindi,High,Energy Isolation,"बिजली बंद किए बिना पैनल खोला गया, कर्मचारी को झटका लगा।"
+H02,Hindi,High,Hot Work,वेल्डर ने हॉट वर्क परमिट के बिना डीज़ल ड्रम के पास वेल्डिंग शुरू कर दी। वहाँ कोई फायर वॉच मौजूद नहीं था।
+H03,Hindi,High,Confined Space,टैंक की सफाई के लिए मजदूर गैस टेस्ट किए बिना अंदर गया और बेहोश होने लगा। बाहर कोई निगरानी करने वाला नहीं था।
+H04,Hindi,High,Working at Height,मजदूर बिना सेफ्टी हार्नेस के 8 मीटर ऊँचे ढांचे पर काम कर रहा था और फिसलकर गिरते-गिरते बचा।
+H05,Hindi,High,Safe Mechanical Lifting,क्रेन से पाइप उठाते समय स्लिंग टूट गई और भार नीचे खड़े एक मजदूर के पास गिरा।
+H06,Hindi,High,Line of Fire,दबाव वाली लाइन खोलते समय कर्मचारी सीधे फ्लेंज के सामने खड़ा था। गैस तेज़ी से निकली और उसके चेहरे के पास से गुज़री।
+H07,Hindi,High,Bypassing Safety Controls,गैस डिटेक्टर का अलार्म बार-बार बजने से ऑपरेटर ने उसे बंद कर दिया और पूरी शिफ्ट बिना अलार्म के काम चलता रहा।
+H08,Hindi,Low,Other / Not Clearly Applicable,"कैंटीन के पास फर्श गीला था, एक कर्मचारी हल्का फिसला पर उसे कोई चोट नहीं लगी।"
+M01,Marathi,High,Energy Isolation,"वीज बंद न करता पॅनेल उघडले, कामगाराला झटका बसला."
+M02,Marathi,High,Hot Work,गॅस चाचणी न करता पाइपलाइनवर वेल्डिंग सुरू केले. जवळच तेलाची गळती होती आणि परवाना घेतला नव्हता.
+M03,Marathi,High,Confined Space,श्वसन उपकरणाशिवाय कामगार टाकीत उतरला आणि आत त्याला चक्कर आली. गॅस चाचणी केली नव्हती.
+M04,Marathi,High,Working at Height,सुरक्षा पट्टा न लावता कामगार १० मीटर उंचीवर पाइप रॅकवर काम करत होता आणि त्याचा पाय घसरला.
+M05,Marathi,High,Safe Mechanical Lifting,क्रेनने जड भार उचलताना एक कामगार लटकत्या भाराखाली उभा होता. पर्यवेक्षकाने त्याला ओरडून बाजूला केले.
+M06,Marathi,Medium,Work Authorisation,परवान्याची मुदत संपल्यानंतरही कंत्राटदाराने खोदकाम सुरू ठेवले. पर्यवेक्षकाने केबलपर्यंत पोहोचण्याआधी काम थांबवले.
+M07,Marathi,High,Driving,टँकर चालक गाडी चालवताना मोबाईलवर बोलत होता आणि वेगमर्यादा ओलांडून पादचाऱ्याला धडकता धडकता वाचला.
+M08,Marathi,Low,Other / Not Clearly Applicable,कार्यशाळेतील प्रथमोपचार पेटीत औषधे आणि पट्ट्या संपल्या होत्या.

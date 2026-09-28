@@ -123,7 +123,8 @@ const activityGroup = (r) => {
 // Site = the part of the location before " - " or " · " (e.g. "Tank Farm - Tank T-108" -> "Tank Farm").
 const siteOf = (r) => {
   if (!r.location || r.location === NOT_RECORDED) return null
-  return r.location.split(/\s+[-–·]\s+/)[0].trim() || null
+  const site = r.location.split(/\s+[-–·]\s+/)[0].trim()
+  return site ? site.charAt(0).toUpperCase() + site.slice(1) : null
 }
 
 // Ranks sites or activities by how many SIF-potential (High) reports they have,
@@ -133,7 +134,9 @@ const buildHotspots = (reports, keyOf) => {
   reports.forEach((r) => {
     const key = keyOf(r)
     if (!key) return
-    const g = (groups[key] = groups[key] || { label: key, total: 0, sif: 0, rules: {} })
+    // Group case-insensitively so "moran" and "Moran" count as one site.
+    const id = key.toLowerCase()
+    const g = (groups[id] = groups[id] || { label: key, total: 0, sif: 0, rules: {} })
     g.total += 1
     if (r.sifPotential === "High") {
       g.sif += 1
@@ -163,7 +166,7 @@ function HotspotList({ title, rows, emptyText }) {
             <div className="flex justify-between gap-3 text-[13px]">
               <span className="font-medium text-slate-800">{idx + 1}. {row.label}</span>
               <span className="text-slate-500 whitespace-nowrap">
-                <span className="text-red-700 font-semibold">{row.sif} SIF</span> / {row.total} reports ({row.density}%)
+                <span className="text-red-700 font-semibold">{row.sif} SIF</span> / {row.total} {row.total === 1 ? "report" : "reports"} ({row.density}%)
               </span>
             </div>
             <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
